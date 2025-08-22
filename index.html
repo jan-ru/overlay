@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Deno Bundle Test</title>
+</head>
+<body>
+  <h1>Deno Bundle Example</h1>
+  <div id="output"></div>
+
+  <!-- Import the bundled Deno script -->
+  <script type="module" src="./dist/bundle.js"></script>
+
+  <!-- Or if hosted on GitHub Pages -->
+  <!--
+  <script type="module" src="https://username.github.io/my-deno-project/dist/bundle.js"></script>
+  -->
+
+  <!-- Optional: capture exports from bundle -->
+  <script type="module">
+    import { foo, bar } from "./dist/bundle.js";
+
+    console.log("Imported values:", foo, bar);
+
+    document.getElementById("output").textContent =
+      `Imported from bundle.js → foo = ${foo}, bar = ${bar}`;
+  </script>
+</body>
+</html>
+

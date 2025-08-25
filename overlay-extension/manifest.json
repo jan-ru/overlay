@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Overlay Toggle",
+  "version": "1.1",
+  "description": "Toggle a semi-transparent overlay in blue or gray.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Overlay Options"
+  },
+  "permissions": ["scripting", "activeTab"]
+}

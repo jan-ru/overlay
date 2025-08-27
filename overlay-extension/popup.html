@@ -10,10 +10,10 @@
 </head>
 <body>
 <div class="button-group">
-  <h3>Sprint Overlays</h3>
-  <button id="sprint1">Sprint 1</button>
-  <button id="sprint2">Sprint 2</button>
-  <button id="sprint3">Sprint 3</button>
+  <h3>Calendar Overlays</h3>
+  <button id="select_day">Day</button>
+  <button id="select_week">Week</button>
+  <button id="select_month">Month</button>
 </div>
 
 <div class="button-group">
@@ -30,6 +30,12 @@
   <button id="multicolor">Toggle Multicolor Banners</button>  
   <button id="debug">Debug Calendar</button>
 </div>
-  <script src="popup.js"></script>
+  <!-- Load modules in dependency order -->
+  <script src="config.js"></script>
+  <script src="calendar-utils.js"></script>
+  <script src="calendar-overlays.js"></script>
+  <script src="text-overlays.js"></script>
+  <script src="multicolor-overlays.js"></script>
+  <script src="popup-main.js"></script>
 </body>
 </html>

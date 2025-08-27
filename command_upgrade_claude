@@ -1,0 +1,5 @@
+ To Force Updates (if needed):
+
+  deno cache --reload npm:@anthropic-ai/claude-code
+
+  No migration needed - you're already running the ideal setup! 🎉

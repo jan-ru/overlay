@@ -95,7 +95,7 @@ async function debugCalendarElements() {
 
 // Event listeners setup
 function setupEventListeners() {
-  console.log('⚙️ Setting up event listeners...');
+  logger.debug('⚙️ Setting up event listeners...');
   
   let isProcessing = false;
   
@@ -240,9 +240,9 @@ if (document.readyState === 'loading') {
 async function initializeExtension() {
   try {
     // Load settings first
-    console.log('📋 Loading settings...');
+    logger.debug('📋 Loading settings...');
     await loadSettings();
-    console.log('✅ Settings loaded successfully');
+    logger.debug('✅ Settings loaded successfully');
     
     // Set up event listeners
     setupEventListeners();

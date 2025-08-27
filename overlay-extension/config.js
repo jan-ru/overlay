@@ -49,3 +49,21 @@ const MULTICOLOR_CONFIG = {
   colors: ["gray", "blue", "green", "red", "yellow"],
   startY: 153
 };
+
+// Logging utility - will be configured based on settings
+let DEBUG_MODE = true; // Default to true, will be updated from settings
+
+const logger = {
+  debug: (...args) => DEBUG_MODE && console.log(...args),
+  info: (...args) => DEBUG_MODE && console.info(...args),
+  warn: (...args) => console.warn(...args), // Always show warnings
+  error: (...args) => console.error(...args), // Always show errors
+  
+  // Update debug mode from settings
+  setDebugMode: (enabled) => {
+    DEBUG_MODE = enabled;
+    if (enabled) {
+      console.log('🔧 Debug logging enabled');
+    }
+  }
+};

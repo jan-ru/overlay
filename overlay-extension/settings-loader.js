@@ -36,6 +36,11 @@ async function loadSettings() {
       }
     });
     
+    // Configure logging based on debugMode setting
+    if (typeof logger !== 'undefined' && logger.setDebugMode) {
+      logger.setDebugMode(settings.debugMode !== false); // Default to true if not specified
+    }
+    
     cachedSettings = settings;
     console.log('✅ Settings loaded successfully:', settings);
     return settings;

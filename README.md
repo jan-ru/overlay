@@ -1,5 +1,9 @@
 # Overlay Toggle Chrome Extension
 
+![Chrome Extension](https://img.shields.io/badge/Chrome%20Extension-v1.1-blue?logo=googlechrome)
+![Manifest V3](https://img.shields.io/badge/manifest-v3-green?logo=googlechrome)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 A Chrome extension designed for lecturers to display course sprint overlays on the HvA "rooster" (schedule) application. The extension provides visual indicators for different course phases (Sprint 1, 2, 3) by detecting actual week numbers in the calendar and overlaying them with colored highlights.
 
 ## Architecture Overview

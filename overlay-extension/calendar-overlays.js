@@ -2,7 +2,7 @@
 
 // select_day function - overlays only today's date
 async function select_day(calendarConfig) {
-  console.log('📅 Toggling select_day overlay:', calendarConfig.id);
+  logger.debug('📅 Toggling select_day overlay:', calendarConfig.id);
   
   try {
     const result = await executeScriptInActiveTab((config, selectors) => {
@@ -256,7 +256,7 @@ async function select_sprint(sprintNumber, startWeek, endWeek, calendarConfig) {
         
         cells.forEach(cell => {
           const text = cell.textContent?.trim().toLowerCase();
-          console.log(`Checking cell text: "${text}"`);
+          logger.debug(`Checking cell text: "${text}"`);
           
           // Look for "week X" patterns - capture only first 1-2 digits after "week"
           const weekMatch = text.match(/week\s*(\d{1,2})/);

@@ -10,6 +10,9 @@
   ],
   "_example": "week 36ma 113:40proces means week 36, week 37815 means week 37 at 8:15",
   
+  "debugMode": true,
+  "_debugDescription": "Set to false to disable console logging (recommended for production use)",
+  
   "courseCode": "FBE/FA/VT/FC_2000PRR_22",
   "sprint1": {
     "startWeek": 36,

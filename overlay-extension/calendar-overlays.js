@@ -200,13 +200,13 @@ async function select_day(calendarConfig) {
   }
 }
 
-// select_month function - overlays all September cells
-async function select_month(calendarConfig) {
-  console.log('📅 Toggling select_month overlay:', calendarConfig.id);
+// Generic select_sprint function - overlays specified weeks
+async function select_sprint(sprintNumber, startWeek, endWeek, calendarConfig) {
+  console.log(`📅 Toggling select_sprint${sprintNumber} overlay:`, calendarConfig.id, `weeks ${startWeek}-${endWeek}`);
   
   try {
-    const result = await executeScriptInActiveTab((config, selectors) => {
-      console.log('🚀 select_month script executing for:', config.id);
+    const result = await executeScriptInActiveTab((config, selectors, sprintNum, start, end) => {
+      console.log(`🚀 select_sprint${sprintNum} script executing for:`, config.id, `weeks ${start}-${end}`);
       
       // Inject utility functions into the page context
       function findCalendarElement(selectors) {
@@ -244,34 +244,142 @@ async function select_month(calendarConfig) {
         return null;
       }
 
-      function findSeptemberCells(calendar) {
-        console.log('📅 Finding September cells (1-30)');
+      function findSprintWeekCells(calendar, startWeek, endWeek) {
+        console.log(`📅 Finding sprint week cells for weeks ${startWeek}-${endWeek}`);
         
         const cells = calendar.querySelectorAll('td');
         console.log(`Found ${cells.length} calendar cells`);
         
-        const dayCells = Array.from(cells).filter(cell => {
-          const text = cell.textContent?.trim();
-          const hasNumeric = /^\d+$/.test(text);
-          const hasDateClass = cell.className?.includes('date') || 
-                               cell.className?.includes('day') ||
-                               cell.className?.includes('cell');
+        // Look for cells containing week numbers
+        const weekCells = [];
+        const foundWeeks = new Set(); // Track which weeks we've found
+        
+        cells.forEach(cell => {
+          const text = cell.textContent?.trim().toLowerCase();
+          console.log(`Checking cell text: "${text}"`);
           
-          return hasNumeric || hasDateClass;
+          // Look for "week X" patterns - capture only first 1-2 digits after "week"
+          const weekMatch = text.match(/week\s*(\d{1,2})/);
+          if (weekMatch) {
+            const weekNum = parseInt(weekMatch[1]);
+            console.log(`Found week pattern: week ${weekNum} in "${text}"`);
+            if (weekNum >= startWeek && weekNum <= endWeek && !foundWeeks.has(weekNum)) {
+              console.log(`✅ Added week ${weekNum} cell:`, text);
+              weekCells.push(cell);
+              foundWeeks.add(weekNum);
+            } else if (foundWeeks.has(weekNum)) {
+              console.log(`⚠️ Week ${weekNum} already found, skipping`);
+            } else {
+              console.log(`⚠️ Week ${weekNum} outside range ${startWeek}-${endWeek}, skipping`);
+            }
+          }
         });
         
-        console.log(`Found ${dayCells.length} potential day cells`);
+        // If we didn't find all expected weeks with "week X" format, try broader search
+        if (foundWeeks.size < (endWeek - startWeek + 1)) {
+          console.log(`Only found ${foundWeeks.size} of ${endWeek - startWeek + 1} expected weeks, trying broader search...`);
+          
+          cells.forEach(cell => {
+            const text = cell.textContent?.trim();
+            
+            // Look for standalone numbers that might be week numbers
+            if (/^\d+$/.test(text)) {
+              const num = parseInt(text);
+              console.log(`Checking standalone number: ${num} (looking for ${startWeek}-${endWeek})`);
+              
+              if (num >= startWeek && num <= endWeek && !foundWeeks.has(num)) {
+                console.log(`Number ${num} is in range and not already found`);
+                
+                // Check context - look for week-related content in surrounding cells
+                const parent = cell.parentElement;
+                const row = parent ? parent : null;
+                let hasWeekContext = false;
+                
+                if (row) {
+                  // Check all cells in the same row
+                  const rowCells = Array.from(row.children);
+                  const rowTexts = rowCells.map(c => c.textContent?.trim()).join(', ');
+                  console.log(`Row texts: [${rowTexts}]`);
+                  
+                  hasWeekContext = rowCells.some(sibling => 
+                    sibling.textContent?.toLowerCase().includes('week')
+                  );
+                  console.log(`Has week context in same row: ${hasWeekContext}`);
+                  
+                  // Also check adjacent rows
+                  if (!hasWeekContext && row.parentElement) {
+                    const allRows = Array.from(row.parentElement.children);
+                    const rowIndex = allRows.indexOf(row);
+                    console.log(`Checking adjacent rows around index ${rowIndex}`);
+                    
+                    // Check row above and below
+                    for (let i = Math.max(0, rowIndex - 1); i <= Math.min(allRows.length - 1, rowIndex + 1); i++) {
+                      const adjacentRow = allRows[i];
+                      const adjacentCells = Array.from(adjacentRow.children);
+                      const adjacentTexts = adjacentCells.map(c => c.textContent?.trim()).join(', ');
+                      console.log(`Adjacent row ${i} texts: [${adjacentTexts}]`);
+                      
+                      if (adjacentCells.some(cell => cell.textContent?.toLowerCase().includes('week'))) {
+                        hasWeekContext = true;
+                        console.log(`Found week context in adjacent row ${i}`);
+                        break;
+                      }
+                    }
+                  }
+                }
+                
+                console.log(`Final week context check for ${num}: ${hasWeekContext}`);
+                if (hasWeekContext) {
+                  console.log(`Found week ${num} cell (by context):`, text);
+                  weekCells.push(cell);
+                  foundWeeks.add(num);
+                } else {
+                  console.log(`Week ${num} rejected - no week context found`);
+                }
+              } else if (foundWeeks.has(num)) {
+                console.log(`Number ${num} already found, skipping`);
+              }
+            }
+          });
+        }
         
-        const septemberCells = dayCells.filter(cell => {
-          const text = cell.textContent?.trim();
-          const dayNumber = parseInt(text);
-          return !isNaN(dayNumber) && dayNumber >= 1 && dayNumber <= 30;
+        // Sort cells by week number for consistent ordering
+        weekCells.sort((a, b) => {
+          const aText = a.textContent?.trim().toLowerCase();
+          const bText = b.textContent?.trim().toLowerCase();
+          
+          const aMatch = aText.match(/week\s*(\d+)/) || aText.match(/^\d+$/);
+          const bMatch = bText.match(/week\s*(\d+)/) || bText.match(/^\d+$/);
+          
+          const aNum = aMatch ? parseInt(aMatch[aMatch.length - 1] || aText) : 0;
+          const bNum = bMatch ? parseInt(bMatch[bMatch.length - 1] || bText) : 0;
+          
+          return aNum - bNum;
         });
         
-        console.log(`Found ${septemberCells.length} September cells`);
-        console.log('September cell contents:', septemberCells.map(cell => cell.textContent?.trim()));
+        console.log(`Found ${weekCells.length} sprint week cells for weeks ${Array.from(foundWeeks).sort().join(', ')}`);
         
-        return septemberCells;
+        // If still no week cells found, try date-based approach
+        if (weekCells.length === 0) {
+          console.log(`No week numbers found, looking for date cells`);
+          
+          // Look for day cells that might correspond to the weeks
+          const dayCells = Array.from(cells).filter(cell => {
+            const text = cell.textContent?.trim();
+            const hasDatePattern = /^(ma|di|wo|do|vr|za|zo)\s*\d+/.test(text.toLowerCase()) ||
+                                  /^\d+$/.test(text);
+            const hasDateClass = cell.className?.includes('date') || 
+                                 cell.className?.includes('day') ||
+                                 cell.className?.includes('cell');
+            
+            return hasDatePattern || hasDateClass;
+          });
+          
+          console.log(`Found ${dayCells.length} potential date cells`);
+          return [];
+        }
+        
+        return weekCells;
       }
       
       function calculateCellBounds(cells) {
@@ -301,7 +409,7 @@ async function select_month(calendarConfig) {
       // Check if this specific overlay exists
       const existing = document.getElementById(config.overlayId);
       if (existing) {
-        console.log('🗑️ Removing existing month overlay:', config.overlayId);
+        console.log(`🗑️ Removing existing sprint${sprintNum} overlay:`, config.overlayId);
         existing.remove();
         
         // Remove associated resize handler
@@ -318,46 +426,35 @@ async function select_month(calendarConfig) {
       overlay.id = config.overlayId;
       
       if (calendar) {
-        const septemberCells = findSeptemberCells(calendar);
+        const sprintCells = findSprintWeekCells(calendar, start, end);
         
-        if (septemberCells.length > 0) {
-          // Calculate bounds for all September cells
-          const monthBounds = calculateCellBounds(septemberCells);
+        if (sprintCells.length > 0) {
+          // Calculate bounds for sprint week cells (height only)
+          const sprintBounds = calculateCellBounds(sprintCells);
+          // Use full calendar width like Week does
+          const calendarRect = calendar.getBoundingClientRect();
           
           Object.assign(overlay.style, {
             position: 'fixed',
-            top: `${monthBounds.top}px`,
-            left: `${monthBounds.left}px`,
-            width: `${monthBounds.width}px`,
-            height: `${monthBounds.height}px`,
+            top: `${sprintBounds.top}px`,
+            left: `${calendarRect.left}px`,
+            width: `${calendarRect.width}px`,
+            height: `${sprintBounds.height}px`,
             background: config.color,
             zIndex: '999999',
             pointerEvents: 'none',
             boxSizing: 'border-box'
           });
           
-          console.log('📐 Month overlay positioned over September:', {
+          console.log(`📐 Sprint${sprintNum} overlay positioned over weeks ${start}-${end}:`, {
             overlayId: config.overlayId,
-            cells: septemberCells.length,
-            bounds: monthBounds
+            cells: sprintCells.length,
+            bounds: sprintBounds
           });
         } else {
-          // Fallback: use full calendar if can't find September cells
-          const rect = calendar.getBoundingClientRect();
-          
-          Object.assign(overlay.style, {
-            position: 'fixed',
-            top: `${rect.top}px`,
-            left: `${rect.left}px`,
-            width: `${rect.width}px`,
-            height: `${rect.height}px`,
-            background: config.color,
-            zIndex: '999999',
-            pointerEvents: 'none',
-            boxSizing: 'border-box'
-          });
-          
-          console.log('📐 Fallback: month overlay positioned over full calendar');
+          // No week numbers found - don't create overlay
+          console.log(`❌ No sprint week cells found for weeks ${start}-${end}, skipping overlay creation`);
+          return 'not_found';
         }
       } else {
         // Ultimate fallback
@@ -373,26 +470,27 @@ async function select_month(calendarConfig) {
           boxSizing: 'border-box'
         });
         
-        console.log('📐 Using ultimate fallback for month overlay');
+        console.log(`📐 Using ultimate fallback for sprint${sprintNum} overlay`);
       }
       
       document.body.appendChild(overlay);
       
       // Add resize handler
-      function updateMonthOverlayOnResize() {
+      function updateSprintOverlayOnResize() {
         const calendar = findCalendarElement(selectors);
         const currentOverlay = document.getElementById(config.overlayId);
         
         if (calendar && currentOverlay) {
-          const septemberCells = findSeptemberCells(calendar);
+          const sprintCells = findSprintWeekCells(calendar, start, end);
           
-          if (septemberCells.length > 0) {
-            const monthBounds = calculateCellBounds(septemberCells);
+          if (sprintCells.length > 0) {
+            const sprintBounds = calculateCellBounds(sprintCells);
+            const calendarRect = calendar.getBoundingClientRect();
             Object.assign(currentOverlay.style, {
-              top: `${monthBounds.top}px`,
-              left: `${monthBounds.left}px`,
-              width: `${monthBounds.width}px`,
-              height: `${monthBounds.height}px`
+              top: `${sprintBounds.top}px`,
+              left: `${calendarRect.left}px`,
+              width: `${calendarRect.width}px`,
+              height: `${sprintBounds.height}px`
             });
           }
         }
@@ -402,287 +500,52 @@ async function select_month(calendarConfig) {
       let resizeTimeout;
       window[`__overlayResizeHandler_${config.id}`] = () => {
         clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(updateMonthOverlayOnResize, 150);
+        resizeTimeout = setTimeout(updateSprintOverlayOnResize, 150);
       };
       window.addEventListener('resize', window[`__overlayResizeHandler_${config.id}`]);
       
-      console.log('✅ select_month overlay created:', config.overlayId);
+      console.log(`✅ select_sprint${sprintNum} overlay created:`, config.overlayId);
       return 'created';
-    }, [calendarConfig, CALENDAR_SELECTORS]);
+    }, [calendarConfig, CALENDAR_SELECTORS, sprintNumber, startWeek, endWeek]);
 
     return result[0]?.result || result;
   } catch (error) {
-    console.error('❌ Error toggling select_month overlay:', error);
+    console.error(`❌ Error toggling select_sprint${sprintNumber} overlay:`, error);
     return 'error';
   }
 }
 
-// select_week function - overlays only the first week (Monday-Friday)
-async function select_week(calendarConfig) {
-  console.log('📅 Toggling select_week overlay:', calendarConfig.id);
-  
+// Sprint wrapper functions that use settings and call generic select_sprint
+async function select_sprint1(calendarConfig) {
   try {
-    const result = await executeScriptInActiveTab((config, selectors) => {
-      console.log('🚀 select_week script executing for:', config.id);
-      
-      // Inject utility functions into the page context
-      function findCalendarElement(selectors) {
-        console.log('🔍 Looking for calendar using hardcoded selectors...');
-        
-        for (let i = 0; i < selectors.length; i++) {
-          const selector = selectors[i];
-          
-          try {
-            if (selector === 'table') {
-              const tables = document.querySelectorAll('table');
-              if (tables.length === 0) continue;
-              
-              let largest = null;
-              let maxArea = 0;
-              
-              tables.forEach(table => {
-                const rect = table.getBoundingClientRect();
-                const area = rect.width * rect.height;
-                if (area > maxArea) {
-                  maxArea = area;
-                  largest = table;
-                }
-              });
-              
-              if (largest) return largest;
-            } else {
-              const element = document.querySelector(selector);
-              if (element) return element;
-            }
-          } catch (error) {
-            console.warn(`Selector failed: ${selector}`, error);
-          }
-        }
-        return null;
-      }
-
-      function findFirstWeekCells(calendar) {
-        console.log('📅 Finding first week cells (Monday-Friday)');
-        
-        const cells = calendar.querySelectorAll('td');
-        console.log(`Found ${cells.length} calendar cells`);
-        
-        if (cells.length === 0) return [];
-        
-        const dayCells = Array.from(cells).filter(cell => {
-          const text = cell.textContent?.trim();
-          const hasNumeric = /^\d+$/.test(text);
-          const hasDateClass = cell.className?.includes('date') || 
-                               cell.className?.includes('day') ||
-                               cell.className?.includes('cell');
-          
-          return hasNumeric || hasDateClass;
-        });
-        
-        console.log(`Found ${dayCells.length} potential day cells`);
-        
-        let firstWeekCells = [];
-        
-        if (dayCells.length >= 5) {
-          console.log('All day cells:', dayCells.map((cell, i) => `${i}: ${cell.textContent?.trim()}`));
-          
-          let mondayIndex = -1;
-          
-          for (let i = 0; i <= dayCells.length - 5; i++) {
-            const currentCell = dayCells[i];
-            const currentText = currentCell.textContent?.trim();
-            const currentNum = parseInt(currentText);
-            
-            if (!isNaN(currentNum)) {
-              let isConsecutive = true;
-              for (let j = 1; j < 5; j++) {
-                const nextCell = dayCells[i + j];
-                const nextText = nextCell?.textContent?.trim();
-                const nextNum = parseInt(nextText);
-                
-                if (isNaN(nextNum) || nextNum !== currentNum + j) {
-                  isConsecutive = false;
-                  break;
-                }
-              }
-              
-              if (isConsecutive) {
-                mondayIndex = i;
-                console.log(`Found Monday-Friday sequence starting at index ${i} (cell: ${currentText})`);
-                break;
-              }
-            }
-          }
-          
-          if (mondayIndex >= 0) {
-            firstWeekCells = dayCells.slice(mondayIndex, mondayIndex + 5);
-            console.log(`Using consecutive sequence: cells ${mondayIndex} to ${mondayIndex + 4}`);
-          } else {
-            const firstCell = dayCells[0];
-            const firstCellRect = firstCell.getBoundingClientRect();
-            
-            const rowCells = dayCells.filter(cell => {
-              const rect = cell.getBoundingClientRect();
-              return Math.abs(rect.top - firstCellRect.top) < 10;
-            });
-            
-            rowCells.sort((a, b) => {
-              const rectA = a.getBoundingClientRect();
-              const rectB = b.getBoundingClientRect();
-              return rectA.left - rectB.left;
-            });
-            
-            firstWeekCells = rowCells.slice(0, 5);
-            console.log(`Fallback: using first 5 cells from first row`);
-          }
-          
-          console.log(`Selected ${firstWeekCells.length} cells for Monday-Friday`);
-          console.log('Selected cell contents:', firstWeekCells.map((cell, i) => `${i}: ${cell.textContent?.trim()}`));
-        }
-        
-        return firstWeekCells;
-      }
-      
-      function calculateCellBounds(cells) {
-        if (cells.length === 0) return null;
-        
-        let minLeft = Infinity;
-        let maxRight = 0;
-        let minTop = Infinity;
-        let maxBottom = 0;
-        
-        cells.forEach(cell => {
-          const rect = cell.getBoundingClientRect();
-          minLeft = Math.min(minLeft, rect.left);
-          maxRight = Math.max(maxRight, rect.right);
-          minTop = Math.min(minTop, rect.top);
-          maxBottom = Math.max(maxBottom, rect.bottom);
-        });
-        
-        return {
-          top: minTop,
-          left: minLeft,
-          width: maxRight - minLeft,
-          height: maxBottom - minTop
-        };
-      }
-      
-      // Check if this specific overlay exists
-      const existing = document.getElementById(config.overlayId);
-      if (existing) {
-        console.log('🗑️ Removing existing overlay:', config.overlayId);
-        existing.remove();
-        
-        // Remove associated resize handler
-        if (window[`__overlayResizeHandler_${config.id}`]) {
-          window.removeEventListener('resize', window[`__overlayResizeHandler_${config.id}`]);
-          delete window[`__overlayResizeHandler_${config.id}`];
-        }
-        
-        return 'removed';
-      }
-
-      const calendar = findCalendarElement(selectors);
-      const overlay = document.createElement('div');
-      overlay.id = config.overlayId;
-      
-      if (calendar) {
-        // Find first week cells (Monday-Friday)
-        const firstWeekCells = findFirstWeekCells(calendar);
-        
-        if (firstWeekCells.length > 0) {
-          // Calculate bounds for first week area
-          const weekBounds = calculateCellBounds(firstWeekCells);
-          
-          Object.assign(overlay.style, {
-            position: 'fixed',
-            top: `${weekBounds.top}px`,
-            left: `${weekBounds.left}px`,
-            width: `${weekBounds.width}px`,
-            height: `${weekBounds.height}px`,
-            background: config.color,
-            zIndex: '999999',
-            pointerEvents: 'none',
-            boxSizing: 'border-box'
-          });
-          
-          console.log('📐 Overlay positioned over first week:', {
-            overlayId: config.overlayId,
-            cells: firstWeekCells.length,
-            bounds: weekBounds
-          });
-        } else {
-          // Fallback: use full calendar if can't find week cells
-          const rect = calendar.getBoundingClientRect();
-          
-          Object.assign(overlay.style, {
-            position: 'fixed',
-            top: `${rect.top}px`,
-            left: `${rect.left}px`,
-            width: `${rect.width}px`,
-            height: `${rect.height}px`,
-            background: config.color,
-            zIndex: '999999',
-            pointerEvents: 'none',
-            boxSizing: 'border-box'
-          });
-          
-          console.log('📐 Fallback: overlay positioned over full calendar');
-        }
-      } else {
-        // Ultimate fallback to responsive positioning
-        Object.assign(overlay.style, {
-          position: 'fixed',
-          top: '152px',
-          left: '0',
-          width: '80vw',
-          height: '100px',
-          background: config.color,
-          zIndex: '999999',
-          pointerEvents: 'none',
-          boxSizing: 'border-box'
-        });
-        
-        console.log('📐 Using ultimate fallback positioning');
-      }
-      
-      document.body.appendChild(overlay);
-      
-      // Add resize handler for responsiveness
-      function updateSelectWeekOnResize() {
-        const calendar = findCalendarElement(selectors);
-        const currentOverlay = document.getElementById(config.overlayId);
-        
-        if (calendar && currentOverlay) {
-          const firstWeekCells = findFirstWeekCells(calendar);
-          
-          if (firstWeekCells.length > 0) {
-            const weekBounds = calculateCellBounds(firstWeekCells);
-            Object.assign(currentOverlay.style, {
-              top: `${weekBounds.top}px`,
-              left: `${weekBounds.left}px`,
-              width: `${weekBounds.width}px`,
-              height: `${weekBounds.height}px`
-            });
-          }
-        }
-      }
-      
-      // Store unique resize handler
-      let resizeTimeout;
-      window[`__overlayResizeHandler_${config.id}`] = () => {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(updateSelectWeekOnResize, 150);
-      };
-      window.addEventListener('resize', window[`__overlayResizeHandler_${config.id}`]);
-      
-      console.log('✅ select_week overlay created:', config.overlayId);
-      return 'created';
-    }, [calendarConfig, CALENDAR_SELECTORS]);
-
-    return result[0]?.result || result;
+    const settings = await loadSettings();
+    const sprint1Config = getSprintConfig(1, settings);
+    return await select_sprint(1, sprint1Config.startWeek, sprint1Config.endWeek, calendarConfig);
   } catch (error) {
-    console.error('❌ Error toggling select_week overlay:', error);
+    console.error('❌ Error in select_sprint1:', error);
     return 'error';
   }
 }
+
+async function select_sprint2(calendarConfig) {
+  try {
+    const settings = await loadSettings();
+    const sprint2Config = getSprintConfig(2, settings);
+    return await select_sprint(2, sprint2Config.startWeek, sprint2Config.endWeek, calendarConfig);
+  } catch (error) {
+    console.error('❌ Error in select_sprint2:', error);
+    return 'error';
+  }
+}
+
+async function select_sprint3(calendarConfig) {
+  try {
+    const settings = await loadSettings();
+    const sprint3Config = getSprintConfig(3, settings);
+    return await select_sprint(3, sprint3Config.startWeek, sprint3Config.endWeek, calendarConfig);
+  } catch (error) {
+    console.error('❌ Error in select_sprint3:', error);
+    return 'error';
+  }
+}
+

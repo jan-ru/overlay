@@ -1,0 +1,29 @@
+{
+  "_comment": "HvA Overlay Extension - Sprint Configuration",
+  "_description": "This file configures which calendar weeks each sprint covers. Week numbers should match the 'week X' text shown in the rooster calendar.",
+  "_instructions": [
+    "1. Update courseCode to match your course identifier",
+    "2. Set startWeek and endWeek for each sprint (calendar week numbers)",
+    "3. Sprint overlays will only show if these week numbers are found in the calendar",
+    "4. Reload the extension after making changes",
+    "5. Use Debug Calendar button to troubleshoot week detection issues"
+  ],
+  "_example": "week 36ma 113:40proces means week 36, week 37815 means week 37 at 8:15",
+  
+  "courseCode": "FBE/FA/VT/FC_2000PRR_22",
+  "sprint1": {
+    "startWeek": 36,
+    "endWeek": 37,
+    "_description": "Sprint 1 period - Green overlay"
+  },
+  "sprint2": {
+    "startWeek": 38,
+    "endWeek": 39,
+    "_description": "Sprint 2 period - Orange overlay"
+  },
+  "sprint3": {
+    "startWeek": 40,
+    "endWeek": 42,
+    "_description": "Sprint 3 period - Blue overlay"
+  }
+}

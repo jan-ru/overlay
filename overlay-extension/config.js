@@ -32,8 +32,9 @@ const CALENDAR_SELECTORS = [
 
 const CALENDAR_CONFIGS = [
   { id: "select_day", color: "rgba(255,0,0,0.3)", overlayId: "custom-overlay-day" },        // red
-  { id: "select_week", color: "rgba(0,0,255,0.3)", overlayId: "custom-overlay-week" },      // blue
-  { id: "select_month", color: "rgba(0,255,0,0.3)", overlayId: "custom-overlay-month" }     // green
+  { id: "select_sprint1", color: "rgba(0,255,0,0.3)", overlayId: "custom-overlay-sprint1" }, // green
+  { id: "select_sprint2", color: "rgba(255,165,0,0.3)", overlayId: "custom-overlay-sprint2" }, // orange
+  { id: "select_sprint3", color: "rgba(0,0,255,0.3)", overlayId: "custom-overlay-sprint3" } // blue
 ];
 
 const TEXT_CONFIGS = [

@@ -119,10 +119,12 @@ function setupEventListeners() {
           // Call the appropriate function based on button ID
           if (config.id === 'select_day') {
             result = await select_day(config);
-          } else if (config.id === 'select_week') {
-            result = await select_week(config);
-          } else if (config.id === 'select_month') {
-            result = await select_month(config);
+          } else if (config.id === 'select_sprint1') {
+            result = await select_sprint1(config);
+          } else if (config.id === 'select_sprint2') {
+            result = await select_sprint2(config);
+          } else if (config.id === 'select_sprint3') {
+            result = await select_sprint3(config);
           }
           
           console.log(`✅ ${config.id} overlay ${result}`);
@@ -223,13 +225,32 @@ function setupEventListeners() {
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   console.log('📄 DOM Content Loaded - initializing...');
-  setupEventListeners();
+  initializeExtension();
 });
 
 // Fallback initialization
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', setupEventListeners);
+  document.addEventListener('DOMContentLoaded', initializeExtension);
 } else {
   console.log('📄 DOM already loaded - initializing immediately...');
-  setupEventListeners();
+  initializeExtension();
+}
+
+// Main initialization function
+async function initializeExtension() {
+  try {
+    // Load settings first
+    console.log('📋 Loading settings...');
+    await loadSettings();
+    console.log('✅ Settings loaded successfully');
+    
+    // Set up event listeners
+    setupEventListeners();
+    
+  } catch (error) {
+    console.error('❌ Failed to initialize extension:', error);
+    // Still set up event listeners even if settings fail
+    // Functions will show individual errors when called
+    setupEventListeners();
+  }
 }

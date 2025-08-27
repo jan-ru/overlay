@@ -9,6 +9,11 @@ Template for “Formal-ish Pseudo Code” for LLMs
 # EDGE CASES: <special inputs or situations>
 # ==============================================
 
+for all functions:
+    read the settings file.
+    assing startWeek, endWeek to each sprint
+
+
 function select_day(today):
 
     when select_day button is activated:
@@ -36,19 +41,19 @@ function select_week(week_number):
     end select_week deactivated
     
 
-function select_month(month_number)
+function select_sprint(sprintNumber, startWeek, endWeek)
 
-    when the select_month button is activated:
-        find the month
-        consider the number of days in the month
-        select all the cells in the month
-        place month_overlay
-    end select_month activated
+    when the select_sprint button is activated:
+        determine the sprintNumber
+        find the startWeek
+        find the endWeek
+        select all cells: startWeek-endWeek
+        place sprintNumber_overley
+    end select_sprint1 activated
 
-    when select_month deactivated:
-        move select_month overlay
-    end select_month deactivated
-
+    when select_sprint deactivated:
+        move select_sprintNumber overlay
+    end select_sprint deactivated
 
 
     # Optional: assertions (LLM can turn into code checks)

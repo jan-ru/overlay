@@ -13,5 +13,11 @@
     "default_title": "Overlay Options"
   },
   "permissions": ["scripting", "activeTab"],
-  "host_permissions": ["https://rooster.hva.nl/*"]
+  "host_permissions": ["https://rooster.hva.nl/*"],
+  "web_accessible_resources": [
+    {
+      "resources": ["settings.json"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

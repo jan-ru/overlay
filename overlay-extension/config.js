@@ -1,48 +1,20 @@
 // Configuration and constants for overlay extension
-const OVERLAY_STYLES = {
-  position: 'fixed',
-  top: '152px',
-  left: '0',
-  width: '80%',
-  height: '100%',
-  zIndex: '999999',
-  pointerEvents: 'none'
-};
+// This file now provides backwards-compatible access to centralized constants from overlay-core.js
+// All configuration data is maintained in OVERLAY_CORE_CONFIG for single source of truth
 
-const TEXT_OVERLAY_STYLES = {
-  position: "fixed",
-  left: "50%",
-  transform: "translate(-50%, -50%)",
-  color: "white",
-  fontSize: "32px",
-  fontWeight: "bold",
-  textShadow: "3px 3px 6px rgba(0,0,0,0.8)",
-  zIndex: "1000000",
-  pointerEvents: "none"
-};
+// Overlay styles - now centralized in overlay-core.js as OVERLAY_CORE_CONFIG.OVERLAY_STYLES
+// Access via: window.OVERLAY_CORE_CONFIG.OVERLAY_STYLES and window.OVERLAY_CORE_CONFIG.TEXT_OVERLAY_STYLES
+const OVERLAY_STYLES = window.OVERLAY_CORE_CONFIG?.OVERLAY_STYLES || {};
+const TEXT_OVERLAY_STYLES = window.OVERLAY_CORE_CONFIG?.TEXT_OVERLAY_STYLES || {};
 
-// CALENDAR SELECTORS - Hardcoded based on detection results
-const CALENDAR_SELECTORS = [
-  'table.GNKVYU1C-',                    // Primary: exact class match
-  'table[class^="GNKVYU1C"]',           // Fallback 1: class starts with GNKVYU1C
-  'table[class*="GNKVYU1C"]',           // Fallback 2: class contains GNKVYU1C
-  '.gwt-TabLayoutPanelContent table',   // Fallback 3: table in GWT content
-  'table'                               // Last resort: any table (will use largest)
-];
+// Calendar selectors - now centralized in overlay-core.js as OVERLAY_CORE_CONFIG.CALENDAR_SELECTORS
+const CALENDAR_SELECTORS = window.OVERLAY_CORE_CONFIG?.CALENDAR_SELECTORS || [];
 
-const CALENDAR_CONFIGS = [
-  { id: "select_blok", color: "rgba(128,128,128,0.3)", overlayId: "custom-overlay-blok" },     // gray
-  { id: "select_sprint1", color: "rgba(0,255,0,0.3)", overlayId: "custom-overlay-sprint1" },   // green
-  { id: "select_sprint2", color: "rgba(255,165,0,0.3)", overlayId: "custom-overlay-sprint2" }, // orange
-  { id: "select_sprint3", color: "rgba(0,0,255,0.3)", overlayId: "custom-overlay-sprint3" },   // blue
-  { id: "select_toets", color: "rgba(255,255,0,0.3)", overlayId: "custom-overlay-toets" },     // yellow
-  { id: "select_assessment", color: "rgba(255,0,255,0.3)", overlayId: "custom-overlay-assessment" }, // magenta
-  { id: "select_day", color: "rgba(255,0,0,0.3)", overlayId: "custom-overlay-day" }            // red
-];
+// Calendar configuration - now centralized in overlay-core.js as OVERLAY_CORE_CONFIG.CALENDAR_CONFIGS
+// Access via: window.OVERLAY_CORE_CONFIG.CALENDAR_CONFIGS
+const CALENDAR_CONFIGS = window.OVERLAY_CORE_CONFIG?.CALENDAR_CONFIGS || [];
 
-const TEXT_CONFIGS = [
-  { id: "textsprint1", text: "Text Sprint 1", position: "30%", overlayId: "custom-text-overlay-sprint1" }
-];
+const TEXT_CONFIGS = [];
 
 // OpenTelemetry logging - import telemetry service
 // Note: In browser extensions, we'll use a global reference since ES6 imports 

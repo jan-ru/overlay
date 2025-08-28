@@ -119,14 +119,14 @@ function setupEventListeners() {
           // Call the appropriate function based on button ID
           if (config.id === 'select_blok') {
             result = await select_blok(config);
-          } else if (config.id === 'select_day') {
-            result = await select_day(config);
           } else if (config.id === 'select_sprint1') {
             result = await select_sprint1(config);
           } else if (config.id === 'select_sprint2') {
             result = await select_sprint2(config);
           } else if (config.id === 'select_sprint3') {
             result = await select_sprint3(config);
+          } else if (config.id === 'select_rooster_vrij') {
+            result = await select_rooster_vrij(config);
           } else if (config.id === 'select_toets') {
             result = await select_toets(config);
           } else if (config.id === 'select_assessment') {
@@ -152,60 +152,9 @@ function setupEventListeners() {
     }
   });
 
-  // Text overlay buttons - individual toggles
-  TEXT_CONFIGS.forEach(config => {
-    const button = document.getElementById(config.id);
-    console.log(`Looking for text button "${config.id}":`, button ? '✅ found' : '❌ not found');
-    
-    if (button) {
-      button.addEventListener("click", async (e) => {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        
-        if (isProcessing) return;
-        isProcessing = true;
-        console.log(`📝 ${config.id} text button clicked!`);
-        
-        try {
-          const result = await toggleTextOverlay(config);
-          console.log(`✅ ${config.id} text overlay ${result}`);
-          
-          // Update button appearance based on state
-          if (result === 'created') {
-            button.style.backgroundColor = '#4CAF50'; // Green when active
-            button.style.color = 'white';
-          } else if (result === 'removed') {
-            button.style.backgroundColor = ''; // Reset to default
-            button.style.color = '';
-          }
-        } catch (error) {
-          console.error(`❌ Error with text ${config.id}:`, error);
-        } finally {
-          setTimeout(() => { isProcessing = false; }, 500);
-        }
-      });
-    }
-  });
+  // Text overlay buttons removed - text now integrated into main overlays
 
 
-  // Debug button
-  const debugButton = document.getElementById("debug");
-  if (debugButton) {
-    debugButton.addEventListener("click", async (e) => {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      
-      if (isProcessing) return;
-      isProcessing = true;
-      
-      console.log('🔍 Debug button clicked!');
-      try {
-        await debugCalendarElements();
-      } finally {
-        setTimeout(() => { isProcessing = false; }, 500);
-      }
-    });
-  }
   
   console.log('✅ Event listeners setup complete');
 }
@@ -229,7 +178,7 @@ function updateTitle() {
   try {
     const titleElement = document.getElementById('calendar-overlays-title');
     if (titleElement && cachedSettings) {
-      const moduleText = cachedSettings.moduleName ? `${cachedSettings.moduleName} Overlays` : 'Calendar Overlays';
+      const moduleText = cachedSettings.moduleName || 'Calendar Overlays';
       titleElement.textContent = moduleText;
       logger.debug('✅ Title updated to:', titleElement.textContent);
     }

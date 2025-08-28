@@ -13,11 +13,12 @@ The extension uses Chrome's Manifest V3 architecture with a modular JavaScript s
 ### Core Components
 
 - **manifest.json**: Extension configuration with scripting, activeTab permissions
-- **popup.html**: UI with hierarchical selectors and overlay buttons (Blok, Sprints 1-3, Toets, Assessment, Dag)
+- **popup.html**: UI with course selectors and overlay buttons (Blok, Sprints 1-3, Rooster Vrij, Toets, Assessment)
 - **settings.json**: Academic hierarchy configuration (Academic Year > Bloks > Modules > Courses)
 - **Modular JavaScript Architecture**:
+  - **overlay-core.js**: Centralized overlay creation library (shared with bookmarklet)
   - **popup-main.js**: Main orchestration and event handling
-  - **config.js**: Constants and configuration objects
+  - **config.js**: Backwards-compatible access to centralized constants
   - **settings-loader.js**: Hierarchical settings loading and validation
   - **calendar-overlays.js**: Calendar overlay functions with week detection
   - **text-overlays.js**: Text overlay functionality
@@ -51,8 +52,9 @@ overlay-extension/
 ├── manifest.json              # Extension configuration
 ├── popup.html                # UI with course selector and overlay buttons
 ├── settings.json             # Academic hierarchy (Bloks/Modules/Courses)
+├── overlay-core.js           # Centralized overlay library (shared core)
 ├── popup-main.js             # Main orchestration and event handling
-├── config.js                 # Constants and configuration objects
+├── config.js                 # Backwards-compatible constant access
 ├── settings-loader.js        # Hierarchical settings management
 ├── calendar-overlays.js      # Calendar overlay functions
 ├── text-overlays.js          # Text overlay functionality
@@ -66,11 +68,10 @@ overlay-extension/
 2. Click the extension icon in Chrome toolbar  
 3. Select course from dropdown (Operations/GRC)
 4. Choose overlay type:
-   - **Blok**: Highlights entire blok period (weeks 36-44)
-   - **Sprint 1-3**: Highlights configured sprint weeks with color coding
+   - **Blok**: Highlights entire blok period (weeks 36-44) with darker emphasis on today if within range
+   - **Sprint 1-3**: Highlights configured sprint weeks with color coding and darker emphasis on today if within range
+   - **Rooster Vrij**: Highlights schedule-free period (week 43) with purple overlay
    - **Toets/Assessment**: Placeholder functions for future implementation
-   - **Dag**: Highlights today's date (only if found in calendar)
-   - **Debug Calendar**: Analyzes calendar structure for troubleshooting
 
 ### Configuration
 

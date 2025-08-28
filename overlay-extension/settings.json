@@ -23,6 +23,13 @@
   "defaultCourse": "Operations",
   "_defaultDescription": "Default selections when extension starts",
   
+  "roosterVrij": {
+    "name": "Rooster Vrij",
+    "startWeek": 43,
+    "endWeek": 43,
+    "_description": "Schedule-free period - Purple overlay"
+  },
+  
   "bloks": {
     "blok1": {
       "name": "Blok 1",

@@ -3,7 +3,7 @@
 ## Overlay Not Visible
 
 1. **Check browser console** (F12 → Console) for detection logs
-2. **Use "Debug Calendar"** to verify calendar detection works
+2. **Check overlay-core.js injection** - Look for "overlay-core.js loaded successfully" 
 3. **Select course** from dropdown (Operations/GRC) before applying overlay
 4. **Ensure rooster page is fully loaded** before applying overlay  
 5. **Check page URL** - extension only works on https://rooster.hva.nl/*
@@ -16,7 +16,7 @@
 3. **Week format examples**: looks for "week 36", "week 37815" (week 37 at 8:15), etc.
 4. **Update settings.json** if blok/sprint weeks have changed for your course
 5. **No overlay rule**: No overlay displayed if configured weeks not found in calendar
-6. **Day overlay**: Only shows if today's date is found in the current calendar view
+6. **Day emphasis**: Darker overlay shows on today's date if it falls within the selected Blok/Sprint period
 
 ## Settings Loading Issues
 
@@ -37,19 +37,19 @@
 
 ## Calendar Detection Failures
 
-1. **Run Debug Calendar** to see what tables are found
-2. **Check console** for table detection results
-3. **GWT class changes**: Rooster updates may change CSS classes
+1. **Check overlay creation logs** - Look for "Creating [type] overlay" messages
+2. **Verify OverlayCore injection** - Should see "OverlayCore found! Creating overlay..."
+3. **GWT class changes**: Rooster updates may change CSS classes  
 4. **Fallback selectors**: Extension tries multiple detection methods automatically
 
 ## Common Console Messages
 
-- ✅ **"Settings loaded successfully"** - Configuration loaded properly
+- ✅ **"overlay-core.js loaded successfully"** - Core library injected properly
+- ✅ **"Creating [Sprint/Blok/Rooster Vrij] overlay"** - Overlay creation started
 - ✅ **"Found week pattern: week 36"** - Week detection working
 - ✅ **"Current course set to: Operations"** - Course selection working
-- ❌ **"No sprint week cells found"** - Target weeks not in current calendar view
-- ❌ **"Today's date not found in calendar"** - Day overlay will not display
-- ❌ **"No blok/module/course selected"** - Check course dropdown selection
+- ❌ **"No [sprint/blok] week cells found"** - Target weeks not in current calendar view
+- ❌ **"OverlayCore not available"** - Core library injection failed
 - ❌ **"Failed to load settings"** - Check settings.json file and syntax
 
 ## Getting Help

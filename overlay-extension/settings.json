@@ -1,32 +1,102 @@
 {
-  "_comment": "HvA Overlay Extension - Sprint Configuration",
-  "_description": "This file configures which calendar weeks each sprint covers. Week numbers should match the 'week X' text shown in the rooster calendar.",
+  "_comment": "HvA Overlay Extension - Academic Year Configuration",
+  "_description": "This file configures the academic year structure with bloks, modules, and courses. Week numbers should match the 'week X' text shown in the rooster calendar.",
   "_instructions": [
-    "1. Update courseCode to match your course identifier",
-    "2. Set startWeek and endWeek for each sprint (calendar week numbers)",
-    "3. Sprint overlays will only show if these week numbers are found in the calendar",
-    "4. Reload the extension after making changes",
-    "5. Use Debug Calendar button to troubleshoot week detection issues"
+    "1. Configure academic year with 4 bloks, each with startWeek/endWeek",
+    "2. Within each blok, define modules with their courses",
+    "3. Set sprint configurations for each course",
+    "4. Sprint overlays will only show if these week numbers are found in the calendar",
+    "5. Reload the extension after making changes",
+    "6. Use Debug Calendar button to troubleshoot week detection issues"
   ],
+  "_hierarchy": "Academic Year > Blok > Module > Course > Sprints",
   "_example": "week 36ma 113:40proces means week 36, week 37815 means week 37 at 8:15",
   
   "debugMode": true,
   "_debugDescription": "Set to false to disable console logging (recommended for production use)",
   
-  "courseCode": "FBE/FA/VT/FC_2000PRR_22",
-  "sprint1": {
-    "startWeek": 36,
-    "endWeek": 37,
-    "_description": "Sprint 1 period - Green overlay"
-  },
-  "sprint2": {
-    "startWeek": 38,
-    "endWeek": 39,
-    "_description": "Sprint 2 period - Orange overlay"
-  },
-  "sprint3": {
-    "startWeek": 40,
-    "endWeek": 42,
-    "_description": "Sprint 3 period - Blue overlay"
+  "academicYear": "25-26",
+  "_academicYearDescription": "Current academic year",
+  
+  "defaultBlok": "blok1",
+  "defaultModule": "2000PRR_22",
+  "defaultCourse": "Operations",
+  "_defaultDescription": "Default selections when extension starts",
+  
+  "bloks": {
+    "blok1": {
+      "name": "Blok 1",
+      "startWeek": 36,
+      "endWeek": 44,
+      "_description": "First quarter of academic year",
+      "modules": {
+        "2000PRR_22": {
+          "name": "Process & Risk",
+          "moduleCode": "2000PRR_22",
+          "startWeek": 36,
+          "endWeek": 44,
+          "_description": "Process & Risk module within Blok 1",
+          "courses": {
+            "Operations": {
+              "name": "Operations",
+              "sprint1": {
+                "startWeek": 36,
+                "endWeek": 37,
+                "_description": "Sprint 1 period - Green overlay"
+              },
+              "sprint2": {
+                "startWeek": 38,
+                "endWeek": 39,
+                "_description": "Sprint 2 period - Orange overlay"
+              },
+              "sprint3": {
+                "startWeek": 40,
+                "endWeek": 42,
+                "_description": "Sprint 3 period - Blue overlay"
+              }
+            },
+            "GRC": {
+              "name": "GRC",
+              "sprint1": {
+                "startWeek": 36,
+                "endWeek": 37,
+                "_description": "Sprint 1 period - Green overlay"
+              },
+              "sprint2": {
+                "startWeek": 38,
+                "endWeek": 39,
+                "_description": "Sprint 2 period - Orange overlay"
+              },
+              "sprint3": {
+                "startWeek": 40,
+                "endWeek": 42,
+                "_description": "Sprint 3 period - Blue overlay"
+              }
+            }
+          }
+        }
+      }
+    },
+    "blok2": {
+      "name": "Blok 2",
+      "startWeek": 45,
+      "endWeek": 53,
+      "_description": "Second quarter of academic year",
+      "modules": {}
+    },
+    "blok3": {
+      "name": "Blok 3",
+      "startWeek": 1,
+      "endWeek": 9,
+      "_description": "Third quarter of academic year",
+      "modules": {}
+    },
+    "blok4": {
+      "name": "Blok 4",
+      "startWeek": 10,
+      "endWeek": 18,
+      "_description": "Fourth quarter of academic year",
+      "modules": {}
+    }
   }
 }

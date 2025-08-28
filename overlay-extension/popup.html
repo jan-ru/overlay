@@ -6,38 +6,46 @@
   <style>
     body { font-family: sans-serif; padding: 10px; }
     button { display: block; margin: 5px 0; width: 120px; padding: 5px; }
+    .course-selector { margin: 10px 0; }
+    .course-selector label { display: block; margin-bottom: 5px; font-weight: bold; }
+    .course-selector select { width: 120px; padding: 5px; }
   </style>
 </head>
 <body>
 <div class="button-group">
-  <h3>Calendar Overlays</h3>
-  <button id="select_day">Day</button>
+  <h3 id="calendar-overlays-title">Calendar Overlays</h3>
+  <div class="course-selector">
+    <label for="course-select">Course:</label>
+    <select id="course-select">
+      <option value="">Loading...</option>
+    </select>
+  </div>
+  <button id="select_blok">Blok</button>
   <button id="select_sprint1">Sprint 1</button>
   <button id="select_sprint2">Sprint 2</button>
   <button id="select_sprint3">Sprint 3</button>
+  <button id="select_toets">Toets</button>
+  <button id="select_assessment">Assessment</button>
+  <button id="select_day">Dag</button>
 </div>
 
 <div class="button-group">
   <h3>Text Overlays</h3>
   <button id="textsprint1">Text Sprint 1</button>
-  <button id="textsprint2">Text Sprint 2</button>
-  <button id="textsprint3">Text Sprint 3</button>
-  <button id="textvakantie">Text vakantie</button>
-  <button id="texttoets">Text toets</button>
 </div>
 
 <div class="button-group">
   <h3>Other</h3>
-  <button id="multicolor">Multicolor Banners</button>  
   <button id="debug">Debug Calendar</button>
 </div>
   <!-- Load modules in dependency order -->
+  <script src="telemetry-loader.js"></script>
   <script src="config.js"></script>
   <script src="settings-loader.js"></script>
   <script src="calendar-utils.js"></script>
   <script src="calendar-overlays.js"></script>
   <script src="text-overlays.js"></script>
-  <script src="multicolor-overlays.js"></script>
+  <script src="test-logging.js"></script>
   <script src="popup-main.js"></script>
 </body>
 </html>

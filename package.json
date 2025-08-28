@@ -1,0 +1,30 @@
+{
+  "name": "overlay",
+  "version": "1.0.0",
+  "description": "![Chrome Extension](https://img.shields.io/badge/Chrome%20Extension-v1.1-blue?logo=googlechrome) ![Manifest V3](https://img.shields.io/badge/manifest-v3-green?logo=googlechrome) ![License](https://img.shields.io/badge/license-MIT-green)",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jan-ru/overlay.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jan-ru/overlay/issues"
+  },
+  "homepage": "https://github.com/jan-ru/overlay#readme",
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-logs-otlp-http": "^0.203.0",
+    "@opentelemetry/instrumentation": "^0.203.0",
+    "@opentelemetry/sdk-logs": "^0.203.0"
+  }
+}

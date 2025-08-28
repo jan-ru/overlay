@@ -31,39 +31,111 @@ const CALENDAR_SELECTORS = [
 ];
 
 const CALENDAR_CONFIGS = [
-  { id: "select_day", color: "rgba(255,0,0,0.3)", overlayId: "custom-overlay-day" },        // red
-  { id: "select_sprint1", color: "rgba(0,255,0,0.3)", overlayId: "custom-overlay-sprint1" }, // green
+  { id: "select_blok", color: "rgba(128,128,128,0.3)", overlayId: "custom-overlay-blok" },     // gray
+  { id: "select_sprint1", color: "rgba(0,255,0,0.3)", overlayId: "custom-overlay-sprint1" },   // green
   { id: "select_sprint2", color: "rgba(255,165,0,0.3)", overlayId: "custom-overlay-sprint2" }, // orange
-  { id: "select_sprint3", color: "rgba(0,0,255,0.3)", overlayId: "custom-overlay-sprint3" } // blue
+  { id: "select_sprint3", color: "rgba(0,0,255,0.3)", overlayId: "custom-overlay-sprint3" },   // blue
+  { id: "select_toets", color: "rgba(255,255,0,0.3)", overlayId: "custom-overlay-toets" },     // yellow
+  { id: "select_assessment", color: "rgba(255,0,255,0.3)", overlayId: "custom-overlay-assessment" }, // magenta
+  { id: "select_day", color: "rgba(255,0,0,0.3)", overlayId: "custom-overlay-day" }            // red
 ];
 
 const TEXT_CONFIGS = [
-  { id: "textsprint1", text: "Text Sprint 1", position: "30%", overlayId: "custom-text-overlay-sprint1" },
-  { id: "textsprint2", text: "Text Sprint 2", position: "40%", overlayId: "custom-text-overlay-sprint2" },
-  { id: "textsprint3", text: "Text Sprint 3", position: "50%", overlayId: "custom-text-overlay-sprint3" },
-  { id: "textvakantie", text: "Text Vakantie", position: "60%", overlayId: "custom-text-overlay-vakantie" },
-  { id: "texttoets", text: "Text Toets", position: "70%", overlayId: "custom-text-overlay-toets" }
+  { id: "textsprint1", text: "Text Sprint 1", position: "30%", overlayId: "custom-text-overlay-sprint1" }
 ];
 
-const MULTICOLOR_CONFIG = {
-  colors: ["gray", "blue", "green", "red", "yellow"],
-  startY: 153
-};
+// OpenTelemetry logging - import telemetry service
+// Note: In browser extensions, we'll use a global reference since ES6 imports 
+// may not work in all contexts. The telemetry service will be loaded separately.
 
-// Logging utility - will be configured based on settings
-let DEBUG_MODE = true; // Default to true, will be updated from settings
-
+// Enhanced logger with OpenTelemetry integration
 const logger = {
-  debug: (...args) => DEBUG_MODE && console.log(...args),
-  info: (...args) => DEBUG_MODE && console.info(...args),
-  warn: (...args) => console.warn(...args), // Always show warnings
-  error: (...args) => console.error(...args), // Always show errors
+  // Get telemetry service instance (loaded globally)
+  getTelemetry: () => window.telemetryService || null,
+  
+  debug: (message, attributes = {}) => {
+    const telemetry = logger.getTelemetry();
+    if (telemetry) {
+      telemetry.debug(message, attributes);
+    } else {
+      console.log(`🔧 ${message}`, attributes);
+    }
+  },
+  
+  info: (message, attributes = {}) => {
+    const telemetry = logger.getTelemetry();
+    if (telemetry) {
+      telemetry.info(message, attributes);
+    } else {
+      console.info(`ℹ️ ${message}`, attributes);
+    }
+  },
+  
+  warn: (message, attributes = {}) => {
+    const telemetry = logger.getTelemetry();
+    if (telemetry) {
+      telemetry.warn(message, attributes);
+    } else {
+      console.warn(`⚠️ ${message}`, attributes);
+    }
+  },
+  
+  error: (message, attributes = {}) => {
+    const telemetry = logger.getTelemetry();
+    if (telemetry) {
+      telemetry.error(message, attributes);
+    } else {
+      console.error(`❌ ${message}`, attributes);
+    }
+  },
+  
+  // Log user actions with structured data
+  logUserAction: (action, details = {}) => {
+    const telemetry = logger.getTelemetry();
+    if (telemetry) {
+      telemetry.logUserAction(action, details);
+    } else {
+      console.info(`👤 User action: ${action}`, details);
+    }
+  },
+  
+  // Log overlay operations
+  logOverlayOperation: (operation, overlayId, result, details = {}) => {
+    const telemetry = logger.getTelemetry();
+    if (telemetry) {
+      telemetry.logOverlayOperation(operation, overlayId, result, details);
+    } else {
+      console.info(`🎨 Overlay ${operation}: ${overlayId} -> ${result}`, details);
+    }
+  },
+  
+  // Log DOM operations
+  logDomOperation: (operation, selector, result, details = {}) => {
+    const telemetry = logger.getTelemetry();
+    if (telemetry) {
+      telemetry.logDomOperation(operation, selector, result, details);
+    } else {
+      console.debug(`🔍 DOM ${operation}: ${selector} -> ${result}`, details);
+    }
+  },
+  
+  // Log errors with context
+  logError: (error, context = {}) => {
+    const telemetry = logger.getTelemetry();
+    if (telemetry) {
+      telemetry.logError(error, context);
+    } else {
+      console.error('❌ Error:', error.message, { error, context });
+    }
+  },
   
   // Update debug mode from settings
   setDebugMode: (enabled) => {
-    DEBUG_MODE = enabled;
-    if (enabled) {
-      console.log('🔧 Debug logging enabled');
+    const telemetry = logger.getTelemetry();
+    if (telemetry) {
+      telemetry.setDebugMode(enabled);
+    } else {
+      console.log(`🔧 Debug logging ${enabled ? 'enabled' : 'disabled'}`);
     }
   }
 };

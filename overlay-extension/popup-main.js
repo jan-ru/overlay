@@ -117,7 +117,9 @@ function setupEventListeners() {
           let result;
           
           // Call the appropriate function based on button ID
-          if (config.id === 'select_day') {
+          if (config.id === 'select_blok') {
+            result = await select_blok(config);
+          } else if (config.id === 'select_day') {
             result = await select_day(config);
           } else if (config.id === 'select_sprint1') {
             result = await select_sprint1(config);
@@ -125,6 +127,10 @@ function setupEventListeners() {
             result = await select_sprint2(config);
           } else if (config.id === 'select_sprint3') {
             result = await select_sprint3(config);
+          } else if (config.id === 'select_toets') {
+            result = await select_toets(config);
+          } else if (config.id === 'select_assessment') {
+            result = await select_assessment(config);
           }
           
           console.log(`✅ ${config.id} overlay ${result}`);
@@ -181,24 +187,6 @@ function setupEventListeners() {
     }
   });
 
-  // Multicolor button
-  const multicolorButton = document.getElementById("multicolor");
-  if (multicolorButton) {
-    multicolorButton.addEventListener("click", async (e) => {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      
-      if (isProcessing) return;
-      isProcessing = true;
-      
-      console.log('🌈 Multicolor button clicked!');
-      try {
-        await createMulticolorBanners();
-      } finally {
-        setTimeout(() => { isProcessing = false; }, 500);
-      }
-    });
-  }
 
   // Debug button
   const debugButton = document.getElementById("debug");
@@ -236,6 +224,80 @@ if (document.readyState === 'loading') {
   initializeExtension();
 }
 
+// Update title with module name from settings
+function updateTitle() {
+  try {
+    const titleElement = document.getElementById('calendar-overlays-title');
+    if (titleElement && cachedSettings) {
+      const moduleText = cachedSettings.moduleName ? `${cachedSettings.moduleName} Overlays` : 'Calendar Overlays';
+      titleElement.textContent = moduleText;
+      logger.debug('✅ Title updated to:', titleElement.textContent);
+    }
+  } catch (error) {
+    console.error('❌ Error updating title:', error);
+  }
+}
+
+// Populate course dropdown
+function populateCourseDropdown() {
+  try {
+    const courseSelect = document.getElementById('course-select');
+    if (!courseSelect || !cachedSettings) return;
+    
+    // Clear existing options
+    courseSelect.innerHTML = '';
+    
+    // Get available courses
+    const courses = getAvailableCourses(cachedSettings);
+    
+    // Add course options
+    courses.forEach(course => {
+      const option = document.createElement('option');
+      option.value = course.key;
+      option.textContent = course.name;
+      courseSelect.appendChild(option);
+    });
+    
+    // Set current course selection
+    const currentCourseKey = getCurrentCourse();
+    if (currentCourseKey) {
+      courseSelect.value = currentCourseKey;
+    }
+    
+    logger.debug('✅ Course dropdown populated with', courses.length, 'courses');
+  } catch (error) {
+    console.error('❌ Error populating course dropdown:', error);
+  }
+}
+
+// Handle course selection change
+function handleCourseChange() {
+  const courseSelect = document.getElementById('course-select');
+  if (!courseSelect) return;
+  
+  courseSelect.addEventListener('change', (e) => {
+    try {
+      const selectedCourse = e.target.value;
+      if (selectedCourse) {
+        setCurrentCourse(selectedCourse);
+        logger.debug('✅ Course changed to:', selectedCourse);
+        
+        // Clear any existing overlays when switching courses
+        clearAllOverlays();
+      }
+    } catch (error) {
+      console.error('❌ Error changing course:', error);
+    }
+  });
+}
+
+// Clear all overlays (helper function)
+function clearAllOverlays() {
+  // This function would remove all existing overlays
+  // Implementation depends on how overlays are tracked
+  logger.debug('🧹 Clearing all overlays on course change');
+}
+
 // Main initialization function
 async function initializeExtension() {
   try {
@@ -243,6 +305,15 @@ async function initializeExtension() {
     logger.debug('📋 Loading settings...');
     await loadSettings();
     logger.debug('✅ Settings loaded successfully');
+    
+    // Update title with module name
+    updateTitle();
+    
+    // Populate course dropdown
+    populateCourseDropdown();
+    
+    // Set up course change handler
+    handleCourseChange();
     
     // Set up event listeners
     setupEventListeners();

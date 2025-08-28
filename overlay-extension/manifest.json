@@ -16,7 +16,7 @@
   "host_permissions": ["https://rooster.hva.nl/*"],
   "web_accessible_resources": [
     {
-      "resources": ["settings.json"],
+      "resources": ["settings.json", "telemetry-loader.js"],
       "matches": ["<all_urls>"]
     }
   ]

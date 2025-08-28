@@ -4,25 +4,29 @@
 
 1. **Check browser console** (F12 → Console) for detection logs
 2. **Use "Debug Calendar"** to verify calendar detection works
-3. **Ensure rooster page is fully loaded** before applying overlay  
-4. **Check page URL** - extension only works on https://rooster.hva.nl/*
-5. **Verify week numbers exist** - Sprint overlays won't show if target weeks not found in calendar
+3. **Select course** from dropdown (Operations/GRC) before applying overlay
+4. **Ensure rooster page is fully loaded** before applying overlay  
+5. **Check page URL** - extension only works on https://rooster.hva.nl/*
+6. **Verify week numbers exist** - Overlays won't show if target weeks/days not found in calendar
 
 ## Week Detection Issues  
 
 1. **Check console logs** for "Found week pattern" messages
 2. **Verify target weeks exist** in current calendar view (may need to navigate to correct month)
 3. **Week format examples**: looks for "week 36", "week 37815" (week 37 at 8:15), etc.
-4. **Update settings.json** if sprint weeks have changed for your course
+4. **Update settings.json** if blok/sprint weeks have changed for your course
 5. **No overlay rule**: No overlay displayed if configured weeks not found in calendar
+6. **Day overlay**: Only shows if today's date is found in the current calendar view
 
 ## Settings Loading Issues
 
 1. **Check console** for "Settings loaded successfully" message
 2. **Verify settings.json exists** and has valid JSON syntax
-3. **Reload extension** after modifying settings
-4. **Settings validation** - errors will show in console if format is incorrect
-5. **Check for typos** in JSON structure (missing commas, brackets, etc.)
+3. **Check hierarchical structure** - Academic Year > Bloks > Modules > Courses
+4. **Reload extension** after modifying settings
+5. **Settings validation** - errors will show in console if format is incorrect
+6. **Check for typos** in JSON structure (missing commas, brackets, etc.)
+7. **Course selection** - Ensure selected course exists in current blok/module
 
 ## Permission Errors
 
@@ -42,7 +46,10 @@
 
 - ✅ **"Settings loaded successfully"** - Configuration loaded properly
 - ✅ **"Found week pattern: week 36"** - Week detection working
+- ✅ **"Current course set to: Operations"** - Course selection working
 - ❌ **"No sprint week cells found"** - Target weeks not in current calendar view
+- ❌ **"Today's date not found in calendar"** - Day overlay will not display
+- ❌ **"No blok/module/course selected"** - Check course dropdown selection
 - ❌ **"Failed to load settings"** - Check settings.json file and syntax
 
 ## Getting Help
@@ -50,4 +57,5 @@
 1. **Enable console logging** (F12 → Console) before reporting issues
 2. **Copy error messages** exactly as shown
 3. **Note calendar view** (which month/weeks are visible when problem occurs)
-4. **Include settings.json** content (with any sensitive course codes removed)
+4. **Include current selections** (Academic Year, Blok, Module, Course)
+5. **Include settings.json** content (with any sensitive course codes removed)

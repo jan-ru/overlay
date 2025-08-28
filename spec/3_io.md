@@ -17,11 +17,19 @@ API / Network HTTP requests or other protocols io_api: endpoint, method, request
 
 Calendar Overlay App has a JSON config file.
 The file contains:
-course code
-sprint1, startweek (int), endweek (int)
-sprint2, startweek (int), endweek (int)
-sprint3, startweek (int), endweek (int)
+course code 1
+    sprint1, startweek (int), endweek (int)
+    sprint2, startweek (int), endweek (int)
+    sprint3, startweek (int), endweek (int)
+    exam, date
+    assessment, date
 
+course code 2
+    sprint1, startweek (int), endweek (int)
+    sprint2, startweek (int), endweek (int)
+    sprint3, startweek (int), endweek (int)
+    exam, date
+    assessment, date
 
 
 Template Integration Example

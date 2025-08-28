@@ -97,14 +97,14 @@ async function select_day(calendarConfig) {
       }
 
       const calendar = findCalendarElement(selectors);
-      const overlay = document.createElement('div');
-      overlay.id = config.overlayId;
       
       if (calendar) {
         const todayCell = findTodayCell(calendar);
         
         if (todayCell) {
-          // Position overlay exactly over today's cell
+          // Create and position overlay exactly over today's cell
+          const overlay = document.createElement('div');
+          overlay.id = config.overlayId;
           const rect = todayCell.getBoundingClientRect();
           
           Object.assign(overlay.style, {
@@ -119,47 +119,23 @@ async function select_day(calendarConfig) {
             boxSizing: 'border-box'
           });
           
+          document.body.appendChild(overlay);
+          
           console.log('📐 Day overlay positioned over today:', {
             overlayId: config.overlayId,
             date: todayCell.textContent?.trim(),
             bounds: { width: rect.width, height: rect.height, top: rect.top, left: rect.left }
           });
         } else {
-          // Fallback: small overlay in top-left of calendar
-          const rect = calendar.getBoundingClientRect();
-          
-          Object.assign(overlay.style, {
-            position: 'fixed',
-            top: `${rect.top}px`,
-            left: `${rect.left}px`,
-            width: '50px',
-            height: '30px',
-            background: config.color,
-            zIndex: '999999',
-            pointerEvents: 'none',
-            boxSizing: 'border-box'
-          });
-          
-          console.log('📐 Fallback: small day overlay at calendar top-left');
+          // When today's date cannot be found, don't create any overlay
+          console.log('❌ Today\'s date not found in calendar - no overlay will be displayed');
+          return 'not_found';
         }
       } else {
-        // Ultimate fallback
-        Object.assign(overlay.style, {
-          position: 'fixed',
-          top: '152px',
-          left: '0',
-          width: '50px',
-          height: '30px',
-          background: config.color,
-          zIndex: '999999',
-          pointerEvents: 'none',
-          boxSizing: 'border-box'
-        });
-        
-        console.log('📐 Using ultimate fallback for day overlay');
+        // When calendar cannot be found, don't create any overlay
+        console.log('❌ Calendar not found - no day overlay will be displayed');
+        return 'not_found';
       }
-      
-      document.body.appendChild(overlay);
       
       // Add resize handler
       function updateDayOverlayOnResize() {
@@ -256,7 +232,7 @@ async function select_sprint(sprintNumber, startWeek, endWeek, calendarConfig) {
         
         cells.forEach(cell => {
           const text = cell.textContent?.trim().toLowerCase();
-          logger.debug(`Checking cell text: "${text}"`);
+          console.log(`Checking cell text: "${text}"`);
           
           // Look for "week X" patterns - capture only first 1-2 digits after "week"
           const weekMatch = text.match(/week\s*(\d{1,2})/);
@@ -515,6 +491,21 @@ async function select_sprint(sprintNumber, startWeek, endWeek, calendarConfig) {
   }
 }
 
+// Blok function - overlays entire blok period
+async function select_blok(calendarConfig) {
+  try {
+    const settings = await loadSettings();
+    const blokConfig = getCurrentBlokConfig();
+    if (!blokConfig) {
+      throw new Error('No blok configuration found');
+    }
+    return await select_sprint(0, blokConfig.startWeek, blokConfig.endWeek, calendarConfig);
+  } catch (error) {
+    console.error('❌ Error in select_blok:', error);
+    return 'error';
+  }
+}
+
 // Sprint wrapper functions that use settings and call generic select_sprint
 async function select_sprint1(calendarConfig) {
   try {
@@ -545,6 +536,30 @@ async function select_sprint3(calendarConfig) {
     return await select_sprint(3, sprint3Config.startWeek, sprint3Config.endWeek, calendarConfig);
   } catch (error) {
     console.error('❌ Error in select_sprint3:', error);
+    return 'error';
+  }
+}
+
+// Toets function - placeholder for future implementation
+async function select_toets(calendarConfig) {
+  try {
+    console.log('📝 Toets overlay - placeholder function');
+    // TODO: Implement toets-specific overlay logic
+    return 'placeholder';
+  } catch (error) {
+    console.error('❌ Error in select_toets:', error);
+    return 'error';
+  }
+}
+
+// Assessment function - placeholder for future implementation
+async function select_assessment(calendarConfig) {
+  try {
+    console.log('📋 Assessment overlay - placeholder function');
+    // TODO: Implement assessment-specific overlay logic
+    return 'placeholder';
+  } catch (error) {
+    console.error('❌ Error in select_assessment:', error);
     return 'error';
   }
 }

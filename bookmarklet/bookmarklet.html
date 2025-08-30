@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HvA Calendar Overlay Bookmarklet</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .bookmarklet-link { 
+            display: inline-block; 
+            padding: 10px 20px; 
+            background: #007cba; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 5px; 
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .bookmarklet-link:hover { background: #005a8a; }
+        .instructions { background: #f0f8ff; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        code { background: #f5f5f5; padding: 2px 4px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>HvA Calendar Overlay Bookmarklet</h1>
+    
+    <div class="instructions">
+        <h2>How to Install:</h2>
+        <ol>
+            <li><strong>Drag the button below</strong> to your browser's bookmarks bar</li>
+            <li>Or <strong>right-click the button</strong> and select "Add to bookmarks"</li>
+            <li>Navigate to <code>https://rooster.hva.nl/schedule</code></li>
+            <li>Click the bookmark to activate the overlay controls</li>
+        </ol>
+    </div>
+
+    <p><strong>Method 1: Drag this button to your bookmarks bar:</strong></p>
+    <a href="#" onclick="installBookmarklet(); return false;" class="bookmarklet-link">📅 HvA Calendar Overlays</a>
+    
+    <div style="margin: 20px 0; padding: 15px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px;">
+        <strong>📋 Manual Installation:</strong><br>
+        If dragging doesn't work, copy this code and create a bookmark manually:
+        <div style="margin-top: 10px;">
+            <textarea id="bookmarklet-code" readonly style="width: 100%; height: 60px; font-family: monospace; font-size: 11px; resize: vertical;">javascript:(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/jan-ru/overlay@main/bookmarklet/overlay-bookmarklet.js';document.head.appendChild(s);})();</textarea>
+        </div>
+        <button onclick="copyToClipboard()" style="margin-top: 5px; padding: 5px 10px; background: #007cba; color: white; border: none; border-radius: 3px; cursor: pointer;">Copy Code</button>
+    </div>
+
+    <script>
+        function installBookmarklet() {
+            alert('Please drag this button to your bookmarks bar, or use the manual installation method below.');
+        }
+        
+        function copyToClipboard() {
+            const textarea = document.getElementById('bookmarklet-code');
+            textarea.select();
+            document.execCommand('copy');
+            alert('Bookmarklet code copied to clipboard!\n\nNow:\n1. Create a new bookmark\n2. Paste this code as the URL\n3. Save the bookmark');
+        }
+    </script>
+
+    <div class="instructions">
+        <h2>Usage:</h2>
+        <ol>
+            <li>Navigate to <code>https://rooster.hva.nl/schedule</code></li>
+            <li>Click the bookmark you just created</li>
+            <li>A control panel will appear in the top-right corner</li>
+            <li>Select your course (Operations or GRC)</li>
+            <li>Click overlay buttons (Blok, Sprint 1, Sprint 2, Sprint 3)</li>
+            <li>Click the same button again to remove the overlay</li>
+        </ol>
+    </div>
+
+    <h2>Features:</h2>
+    <ul>
+        <li>✅ Week-based overlays for academic planning</li>
+        <li>✅ Today's date highlighting when in active period</li>
+        <li>✅ Course selection (Operations/GRC)</li>
+        <li>✅ Toggle overlays on/off</li>
+        <li>✅ Works without Chrome extension installation</li>
+    </ul>
+
+    <p><em>This bookmarklet provides the same functionality as the Chrome extension but runs directly in the webpage without requiring installation permissions.</em></p>
+</body>
+</html>

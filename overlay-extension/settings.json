@@ -79,6 +79,18 @@
                 "endWeek": 42,
                 "_description": "Sprint 3 period - Blue overlay"
               }
+            },
+            "Toets": {
+              "name": "Toets",
+              "weekNumber": 45,
+              "dayNumber": 5,
+              "_description": "Test period - Yellow overlay on specific day"
+            },
+            "Assessment": {
+              "name": "Assessment",
+              "weekNumber": 45,
+              "dayNumber": 6,
+              "_description": "Assessment period - Magenta overlay on specific day"
             }
           }
         }

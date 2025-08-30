@@ -61,19 +61,31 @@ async function loadSettings() {
                 throw new Error(`Missing name for course ${courseKey} in module ${moduleKey}`);
               }
               
-              if (!course.sprint1 || !course.sprint2 || !course.sprint3) {
-                throw new Error(`Missing sprint configurations in course ${courseKey} of module ${moduleKey}`);
+              // Check if this is a day-specific course (Toets/Assessment) or sprint-based course
+              const isDaySpecific = course.weekNumber !== undefined && course.dayNumber !== undefined;
+              const isSprintBased = course.sprint1 && course.sprint2 && course.sprint3;
+              
+              if (!isDaySpecific && !isSprintBased) {
+                throw new Error(`Course ${courseKey} must have either sprint configurations (sprint1, sprint2, sprint3) or day-specific configuration (weekNumber, dayNumber)`);
               }
               
-              ['sprint1', 'sprint2', 'sprint3'].forEach(sprintKey => {
-                const sprint = course[sprintKey];
-                if (typeof sprint.startWeek !== 'number' || typeof sprint.endWeek !== 'number') {
-                  throw new Error(`Invalid week numbers in ${courseKey}.${sprintKey}: startWeek and endWeek must be numbers`);
+              if (isDaySpecific) {
+                // Validate day-specific course configuration
+                if (typeof course.weekNumber !== 'number' || typeof course.dayNumber !== 'number') {
+                  throw new Error(`Invalid day-specific configuration in course ${courseKey}: weekNumber and dayNumber must be numbers`);
                 }
-                if (sprint.startWeek > sprint.endWeek) {
-                  throw new Error(`Invalid week range in ${courseKey}.${sprintKey}: startWeek cannot be greater than endWeek`);
-                }
-              });
+              } else {
+                // Validate sprint-based course configuration
+                ['sprint1', 'sprint2', 'sprint3'].forEach(sprintKey => {
+                  const sprint = course[sprintKey];
+                  if (typeof sprint.startWeek !== 'number' || typeof sprint.endWeek !== 'number') {
+                    throw new Error(`Invalid week numbers in ${courseKey}.${sprintKey}: startWeek and endWeek must be numbers`);
+                  }
+                  if (sprint.startWeek > sprint.endWeek) {
+                    throw new Error(`Invalid week range in ${courseKey}.${sprintKey}: startWeek cannot be greater than endWeek`);
+                  }
+                });
+              }
             });
           }
         });

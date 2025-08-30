@@ -138,11 +138,24 @@ async function createOverlay(type, number, calendarConfig) {
       startWeek = sprintConfig.startWeek;
       endWeek = sprintConfig.endWeek;
       sprintNumber = number;
+    } else if (type === 'rooster_vrij') {
+      const roosterVrijConfig = settings.roosterVrij;
+      if (!roosterVrijConfig) {
+        throw new Error('No Rooster Vrij configuration found in settings');
+      }
+      startWeek = roosterVrijConfig.startWeek;
+      endWeek = roosterVrijConfig.endWeek;
+      sprintNumber = -1; // Use -1 for rooster_vrij to distinguish from blok (0) and sprints (1-3)
     } else {
       throw new Error(`Unknown overlay type: ${type}`);
     }
     
-    return await select_sprint(sprintNumber, startWeek, endWeek, calendarConfig);
+    // Route to the appropriate overlay creation method
+    if (type === 'rooster_vrij') {
+      return await createRoosterVrijOverlay(startWeek, endWeek, calendarConfig);
+    } else {
+      return await select_sprint(sprintNumber, startWeek, endWeek, calendarConfig);
+    }
   } catch (error) {
     console.error(`❌ Error in ${type}${number || ''}:`, error);
     return 'error';
@@ -166,8 +179,9 @@ async function select_sprint3(calendarConfig) {
   return await createOverlay('sprint', 3, calendarConfig);
 }
 
-async function select_rooster_vrij(calendarConfig) {
-  console.log('🟣 Toggling Rooster Vrij overlay:', calendarConfig.id);
+// Rooster Vrij overlay creation function  
+async function createRoosterVrijOverlay(startWeek, endWeek, calendarConfig) {
+  console.log('🟣 Toggling Rooster Vrij overlay:', calendarConfig.id, `weeks ${startWeek}-${endWeek}`);
   
   try {
     // Ensure overlay core is injected
@@ -176,9 +190,9 @@ async function select_rooster_vrij(calendarConfig) {
     // Brief delay since we now use proper script injection
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    // Execute the Rooster Vrij overlay creation logic in the active tab
-    const result = await executeScriptInActiveTab((config) => {
-      console.log('🎯 Starting Rooster Vrij overlay creation with:', { config: config.id });
+    // Execute the core overlay creation logic in the active tab
+    const result = await executeScriptInActiveTab((config, start, end) => {
+      console.log('🎯 Starting Rooster Vrij overlay creation with:', { config: config.id, start, end });
       
       if (!window.OverlayCore) {
         throw new Error('OverlayCore not available in content script context');
@@ -193,42 +207,81 @@ async function select_rooster_vrij(calendarConfig) {
       }
       
       try {
-        // Get Rooster Vrij configuration - hardcoded for now since settings not available in content context
-        const roosterVrijConfig = {
-          startWeek: 43,
-          endWeek: 43
-        };
-        
         // Call createRoosterVrijOverlay and return result
         console.log('🎨 Calling createRoosterVrijOverlay...');
-        const result = window.overlayCore.createRoosterVrijOverlay(
-          roosterVrijConfig.startWeek, 
-          roosterVrijConfig.endWeek, 
-          config
-        );
+        const result = window.overlayCore.createRoosterVrijOverlay(start, end, config);
         console.log('🎉 Rooster Vrij overlay creation result:', result);
         return result;
       } catch (error) {
         console.error('❌ Error in createRoosterVrijOverlay:', error);
         throw error;
       }
-    }, [calendarConfig]);
+    }, [calendarConfig, startWeek, endWeek]);
 
     return result[0]?.result || result;
   } catch (error) {
-    console.error('❌ Error in Rooster Vrij overlay:', error);
+    console.error(`❌ Error toggling Rooster Vrij overlay:`, error);
     return 'error';
   }
 }
 
-// Placeholder functions for future implementation
-async function select_toets(calendarConfig) {
-  console.log('📝 Toets overlay - placeholder function');
-  return 'placeholder';
+async function select_rooster_vrij(calendarConfig) {
+  return await createOverlay('rooster_vrij', null, calendarConfig);
 }
 
+// Generic day-specific overlay function
+async function createDaySpecificOverlay(overlayType, weekNumber, dayNumber, calendarConfig) {
+  console.log(`📅 Toggling ${overlayType} overlay:`, calendarConfig.id);
+  
+  try {
+    // Ensure overlay core is injected
+    await injectOverlayCore();
+    
+    // Brief delay since we now use proper script injection
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Execute the day-specific overlay creation logic in the active tab
+    const result = await executeScriptInActiveTab((config, type, week, day) => {
+      console.log(`🎯 Starting ${type} overlay creation with:`, { config: config.id });
+      
+      if (!window.OverlayCore) {
+        throw new Error('OverlayCore not available in content script context');
+      }
+      
+      console.log(`✅ OverlayCore found! Creating ${type} overlay...`);
+      
+      // Initialize overlay core instance if not exists
+      if (!window.overlayCore) {
+        console.log('🏗️ Creating new OverlayCore instance...');
+        window.overlayCore = new window.OverlayCore();
+      }
+      
+      try {
+        // Call createDayOverlay and return result
+        console.log(`🎨 Calling createDayOverlay for ${type}...`);
+        const result = window.overlayCore.createDayOverlay(type, week, day, config);
+        console.log(`🎉 ${type} overlay creation result:`, result);
+        return result;
+      } catch (error) {
+        console.error('❌ Error in createDayOverlay:', error);
+        throw error;
+      }
+    }, [calendarConfig, overlayType, weekNumber, dayNumber]);
+
+    return result[0]?.result || result;
+  } catch (error) {
+    console.error(`❌ Error in ${overlayType} overlay:`, error);
+    return 'error';
+  }
+}
+
+// Toets overlay function - uses generic day-specific overlay
+async function select_toets(calendarConfig) {
+  return await createDaySpecificOverlay('Toets', 44, 30, calendarConfig);
+}
+
+// Assessment overlay function - uses generic day-specific overlay
 async function select_assessment(calendarConfig) {
-  console.log('📋 Assessment overlay - placeholder function');
-  return 'placeholder';
+  return await createDaySpecificOverlay('Assessment', 44, 31, calendarConfig);
 }
 

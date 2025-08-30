@@ -338,11 +338,16 @@
     };
   }
 
-  // Settings for bookmarklet (hardcoded for simplicity)
+  // Settings for bookmarklet (matches current Chrome extension settings)
   const bookmarkletSettings = {
     academicYear: "25-26",
     moduleCode: "2000PRR_22",
     moduleName: "Process & Risk",
+    roosterVrij: {
+      name: "Rooster Vrij",
+      startWeek: 43,
+      endWeek: 43
+    },
     bloks: {
       blok1: {
         name: "Blok 1",
@@ -358,14 +363,24 @@
               Operations: {
                 name: "Operations",
                 sprint1: { startWeek: 36, endWeek: 37 },
-                sprint2: { startWeek: 38, endWeek: 40 },
-                sprint3: { startWeek: 41, endWeek: 44 }
+                sprint2: { startWeek: 38, endWeek: 39 },
+                sprint3: { startWeek: 40, endWeek: 42 }
               },
               GRC: {
                 name: "GRC",
                 sprint1: { startWeek: 36, endWeek: 37 },
-                sprint2: { startWeek: 38, endWeek: 40 },
-                sprint3: { startWeek: 41, endWeek: 44 }
+                sprint2: { startWeek: 38, endWeek: 39 },
+                sprint3: { startWeek: 40, endWeek: 42 }
+              },
+              Toets: {
+                name: "Toets",
+                weekNumber: 45,
+                dayNumber: 5
+              },
+              Assessment: {
+                name: "Assessment",
+                weekNumber: 45,
+                dayNumber: 6
               }
             }
           }
@@ -411,9 +426,54 @@
       startWeek = sprintConfig.startWeek;
       endWeek = sprintConfig.endWeek;
       sprintNumber = number;
+    } else if (type === 'rooster_vrij') {
+      const roosterVrijConfig = bookmarkletSettings.roosterVrij;
+      startWeek = roosterVrijConfig.startWeek;
+      endWeek = roosterVrijConfig.endWeek;
+      sprintNumber = -1; // Use -1 for rooster_vrij
     }
     
     return overlayCore.createSprintOverlay(sprintNumber, startWeek, endWeek, calendarConfig);
+  }
+
+  // Day-specific overlay function for Toets and Assessment
+  function createDayOverlay(courseKey, calendarConfig) {
+    const blok = bookmarkletSettings.bloks[currentBlok];
+    const module = blok.modules[currentModule];
+    const course = module.courses[courseKey];
+    
+    if (!course || typeof course.weekNumber === 'undefined' || typeof course.dayNumber === 'undefined') {
+      console.error(`Invalid day-specific course configuration for ${courseKey}`);
+      return 'error';
+    }
+
+    // For simplicity, create a basic day overlay (could be enhanced to match full extension functionality)
+    const existing = document.getElementById(calendarConfig.overlayId);
+    
+    if (existing) {
+      existing.remove();
+      return 'removed';
+    }
+
+    // Create a simple overlay for the day (basic implementation)
+    const overlay = document.createElement('div');
+    overlay.id = calendarConfig.overlayId;
+    overlay.style.cssText = `
+      position: fixed;
+      top: 200px;
+      right: 10px;
+      background: ${calendarConfig.color};
+      padding: 10px;
+      border-radius: 5px;
+      color: white;
+      font-weight: bold;
+      z-index: 1000000;
+      pointer-events: none;
+    `;
+    overlay.textContent = `${course.name} - Week ${course.weekNumber}, Day ${course.dayNumber}`;
+    document.body.appendChild(overlay);
+    
+    return 'created';
   }
 
   // Create UI
@@ -449,6 +509,8 @@
         <select id="bookmarklet-course" style="width: 100%; padding: 3px;">
           <option value="Operations">Operations</option>
           <option value="GRC">GRC</option>
+          <option value="Toets">Toets</option>
+          <option value="Assessment">Assessment</option>
         </select>
       </div>
       <div style="display: flex; flex-direction: column; gap: 5px;">
@@ -456,6 +518,9 @@
         <button id="bookmarklet-sprint1" style="padding: 5px; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer; border-radius: 3px;">Sprint 1</button>
         <button id="bookmarklet-sprint2" style="padding: 5px; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer; border-radius: 3px;">Sprint 2</button>
         <button id="bookmarklet-sprint3" style="padding: 5px; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer; border-radius: 3px;">Sprint 3</button>
+        <button id="bookmarklet-rooster-vrij" style="padding: 5px; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer; border-radius: 3px;">Rooster Vrij</button>
+        <button id="bookmarklet-toets" style="padding: 5px; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer; border-radius: 3px;">Toets</button>
+        <button id="bookmarklet-assessment" style="padding: 5px; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer; border-radius: 3px;">Assessment</button>
         <button id="bookmarklet-close" style="padding: 5px; border: 1px solid #ddd; background: #ffdddd; cursor: pointer; border-radius: 3px; margin-top: 5px;">Close</button>
       </div>
     `;
@@ -491,6 +556,24 @@
     ui.querySelector('#bookmarklet-sprint3').addEventListener('click', () => {
       const result = createOverlay('sprint', 3, configs[3]);
       console.log('Sprint 3 overlay:', result);
+    });
+
+    ui.querySelector('#bookmarklet-rooster-vrij').addEventListener('click', () => {
+      const roosterVrijConfig = { id: "select_rooster_vrij", color: "rgba(128,0,128,0.3)", overlayId: "custom-overlay-rooster-vrij" };
+      const result = createOverlay('rooster_vrij', null, roosterVrijConfig);
+      console.log('Rooster Vrij overlay:', result);
+    });
+
+    ui.querySelector('#bookmarklet-toets').addEventListener('click', () => {
+      const toetsConfig = { id: "select_toets", color: "rgba(255,255,0,0.3)", overlayId: "custom-overlay-toets" };
+      const result = createDayOverlay('Toets', toetsConfig);
+      console.log('Toets overlay:', result);
+    });
+
+    ui.querySelector('#bookmarklet-assessment').addEventListener('click', () => {
+      const assessmentConfig = { id: "select_assessment", color: "rgba(255,0,255,0.3)", overlayId: "custom-overlay-assessment" };
+      const result = createDayOverlay('Assessment', assessmentConfig);
+      console.log('Assessment overlay:', result);
     });
 
     ui.querySelector('#bookmarklet-close').addEventListener('click', () => {

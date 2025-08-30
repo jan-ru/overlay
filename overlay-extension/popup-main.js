@@ -1,6 +1,66 @@
 // Main popup orchestration file
 // This file coordinates all overlay functionality
 
+// URL validation function
+async function validateCurrentPage() {
+  return new Promise((resolve) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (chrome.runtime.lastError) {
+        console.error('Tab query error:', chrome.runtime.lastError);
+        resolve(false);
+        return;
+      }
+      
+      if (!tabs || !tabs[0]) {
+        console.error('No active tab found');
+        resolve(false);
+        return;
+      }
+
+      const currentUrl = tabs[0].url;
+      console.log('Current page URL:', currentUrl);
+      
+      // Check if URL matches the required pattern
+      const isValidPage = currentUrl && currentUrl.startsWith('https://rooster.hva.nl/schedule');
+      
+      console.log('Page validation result:', isValidPage ? '✅ Valid' : '❌ Invalid');
+      resolve(isValidPage);
+    });
+  });
+}
+
+// Show error message and hide main content
+function showPageError() {
+  const errorContainer = document.getElementById('error-container');
+  const mainContent = document.getElementById('main-content');
+  
+  if (errorContainer) {
+    errorContainer.style.display = 'block';
+  }
+  
+  if (mainContent) {
+    mainContent.style.display = 'none';
+  }
+  
+  console.log('🚫 Extension deactivated - Invalid page');
+}
+
+// Show main content and hide error message
+function showMainContent() {
+  const errorContainer = document.getElementById('error-container');
+  const mainContent = document.getElementById('main-content');
+  
+  if (errorContainer) {
+    errorContainer.style.display = 'none';
+  }
+  
+  if (mainContent) {
+    mainContent.style.display = 'block';
+  }
+  
+  console.log('✅ Extension activated - Valid page');
+}
+
 // Utility functions
 function executeScriptInActiveTab(func, args = []) {
   return new Promise((resolve, reject) => {
@@ -250,6 +310,19 @@ function clearAllOverlays() {
 // Main initialization function
 async function initializeExtension() {
   try {
+    // First validate that we're on the correct page
+    console.log('🔍 Validating current page...');
+    const isValidPage = await validateCurrentPage();
+    
+    if (!isValidPage) {
+      // Show error message and deactivate extension
+      showPageError();
+      return; // Stop initialization - extension is deactivated
+    }
+    
+    // Page is valid, show main content and continue initialization
+    showMainContent();
+    
     // Load settings first
     logger.debug('📋 Loading settings...');
     await loadSettings();
@@ -269,8 +342,7 @@ async function initializeExtension() {
     
   } catch (error) {
     console.error('❌ Failed to initialize extension:', error);
-    // Still set up event listeners even if settings fail
-    // Functions will show individual errors when called
-    setupEventListeners();
+    // Show error and deactivate extension
+    showPageError();
   }
 }

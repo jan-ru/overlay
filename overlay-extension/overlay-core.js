@@ -273,6 +273,64 @@ window.OverlayCore = class OverlayCore {
     return this.findSprintWeekCells(calendar, startWeek, endWeek);
   }
 
+  // Find specific day cell within a week
+  findDayCell(calendar, weekNumber, dayNumber) {
+    console.log(`📅 Finding day ${dayNumber} in week ${weekNumber}`);
+    
+    const cells = calendar.querySelectorAll('td');
+    
+    // Look for cells containing the specific day number with week context
+    const dayCells = Array.from(cells).filter(cell => {
+      const text = cell.textContent?.trim();
+      const cellDayNumber = parseInt(text);
+      
+      // Check if this cell contains the day number we're looking for
+      if (cellDayNumber === dayNumber) {
+        // Check if this cell or nearby cells contain week information
+        const parent = cell.parentElement;
+        const row = parent ? parent : null;
+        
+        if (row) {
+          // Check all cells in the same row for week context
+          const rowCells = Array.from(row.children);
+          const hasWeekContext = rowCells.some(sibling => {
+            const siblingText = sibling.textContent?.toLowerCase();
+            return siblingText && siblingText.includes(`week ${weekNumber}`);
+          });
+          
+          if (hasWeekContext) {
+            return true;
+          }
+          
+          // Also check adjacent rows for week context
+          if (row.parentElement) {
+            const allRows = Array.from(row.parentElement.children);
+            const rowIndex = allRows.indexOf(row);
+            
+            for (let i = Math.max(0, rowIndex - 1); i <= Math.min(allRows.length - 1, rowIndex + 1); i++) {
+              const adjacentRow = allRows[i];
+              const adjacentCells = Array.from(adjacentRow.children);
+              
+              const hasAdjacentWeekContext = adjacentCells.some(cell => {
+                const cellText = cell.textContent?.toLowerCase();
+                return cellText && cellText.includes(`week ${weekNumber}`);
+              });
+              
+              if (hasAdjacentWeekContext) {
+                return true;
+              }
+            }
+          }
+        }
+      }
+      
+      return false;
+    });
+    
+    console.log(`Found ${dayCells.length} cells for day ${dayNumber} in week ${weekNumber}`);
+    return dayCells.length > 0 ? dayCells[0] : null; // Return first matching cell
+  }
+
   calculateCellBounds(cells) {
     if (cells.length === 0) return null;
     
@@ -618,6 +676,140 @@ window.OverlayCore = class OverlayCore {
       console.error('❌ Could not calculate bounds for Rooster Vrij overlay');
       return 'error';
     }
+  }
+
+  // Day-specific overlay creation function for Toets and Assessment
+  createDayOverlay(overlayType, weekNumber, dayNumber, calendarConfig) {
+    console.log(`📅 Creating ${overlayType} overlay for day ${dayNumber} in week ${weekNumber}`);
+    
+    const selectors = window.OVERLAY_CORE_CONFIG.CALENDAR_SELECTORS;
+    
+    // Check if this specific overlay exists
+    const existing = document.getElementById(calendarConfig.overlayId);
+    const existingText = document.getElementById(calendarConfig.overlayId + '-text');
+    
+    if (existing || existingText) {
+      console.log(`🗑️ Removing existing ${overlayType} overlay:`, calendarConfig.overlayId);
+      
+      if (existing) existing.remove();
+      if (existingText) existingText.remove();
+      
+      // Remove associated resize handler
+      if (window[`__overlayResizeHandler_${calendarConfig.id}`]) {
+        window.removeEventListener('resize', window[`__overlayResizeHandler_${calendarConfig.id}`]);
+        delete window[`__overlayResizeHandler_${calendarConfig.id}`];
+      }
+      
+      return 'removed';
+    }
+    
+    // Find calendar
+    const calendar = this.findCalendarElement(selectors);
+    if (!calendar) {
+      console.error(`❌ Calendar not found for ${overlayType} overlay`);
+      return 'error';
+    }
+    
+    const calendarRect = calendar.getBoundingClientRect();
+    console.log(`📅 Calendar found for ${overlayType}:`, {
+      width: calendarRect.width,
+      height: calendarRect.height,
+      left: calendarRect.left,
+      top: calendarRect.top
+    });
+    
+    // Find the specific day cell
+    const dayCell = this.findDayCell(calendar, weekNumber, dayNumber);
+    
+    if (!dayCell) {
+      console.warn(`⚠️ No cell found for day ${dayNumber} in week ${weekNumber}`);
+      return 'no_cells';
+    }
+    
+    const dayRect = dayCell.getBoundingClientRect();
+    
+    // Create overlay for the specific day
+    const overlay = document.createElement('div');
+    overlay.id = calendarConfig.overlayId;
+    
+    Object.assign(overlay.style, {
+      position: 'fixed',
+      left: dayRect.left + 'px',
+      top: dayRect.top + 'px',
+      width: dayRect.width + 'px',
+      height: dayRect.height + 'px',
+      background: calendarConfig.color,
+      border: '2px solid ' + this.getDarkerColor(calendarConfig.color).replace('0.6)', '1)'),
+      zIndex: '999999',
+      pointerEvents: 'none',
+      boxSizing: 'border-box'
+    });
+    
+    console.log(`📐 ${overlayType} overlay positioned over day ${dayNumber}:`, {
+      overlayId: calendarConfig.overlayId,
+      bounds: { left: dayRect.left, top: dayRect.top, width: dayRect.width, height: dayRect.height }
+    });
+    
+    // Create text overlay in the center
+    const overlayBounds = {
+      left: dayRect.left,
+      top: dayRect.top,
+      width: dayRect.width,
+      height: dayRect.height
+    };
+    
+    document.body.appendChild(overlay);
+    this.createTextOverlay(overlayType, calendarConfig.overlayId, overlayBounds);
+    
+    // Create resize handler
+    const updateDayOverlayOnResize = () => {
+      const newCalendar = this.findCalendarElement(selectors);
+      if (!newCalendar) return;
+      
+      const newDayCell = this.findDayCell(newCalendar, weekNumber, dayNumber);
+      
+      if (newDayCell) {
+        const newDayRect = newDayCell.getBoundingClientRect();
+        const currentOverlay = document.getElementById(calendarConfig.overlayId);
+        const currentText = document.getElementById(calendarConfig.overlayId + '-text');
+        
+        if (currentOverlay && newDayRect) {
+          Object.assign(currentOverlay.style, {
+            left: newDayRect.left + 'px',
+            top: newDayRect.top + 'px',
+            width: newDayRect.width + 'px',
+            height: newDayRect.height + 'px'
+          });
+          
+          if (currentText) {
+            const newOverlayBounds = {
+              left: newDayRect.left,
+              top: newDayRect.top,
+              width: newDayRect.width,
+              height: newDayRect.height
+            };
+            
+            const centerX = newOverlayBounds.left + (newOverlayBounds.width / 2);
+            const centerY = newOverlayBounds.top + (newOverlayBounds.height / 2);
+            
+            Object.assign(currentText.style, {
+              left: centerX + 'px',
+              top: centerY + 'px'
+            });
+          }
+        }
+      }
+    };
+    
+    let resizeTimeout;
+    window[`__overlayResizeHandler_${calendarConfig.id}`] = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(updateDayOverlayOnResize, 150);
+    };
+    window.addEventListener('resize', window[`__overlayResizeHandler_${calendarConfig.id}`]);
+    
+    console.log(`✅ ${overlayType} overlay created:`, calendarConfig.overlayId);
+    return 'created';
   }
 
   // Settings-related functions (to be implemented based on context)

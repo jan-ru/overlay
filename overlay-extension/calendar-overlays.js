@@ -119,169 +119,129 @@ async function select_sprint(sprintNumber, startWeek, endWeek, calendarConfig) {
   }
 }
 
-// Generic overlay function that handles both bloks and sprints
-async function createOverlay(type, number, calendarConfig) {
+// Unified overlay creation function - handles all overlay types
+async function createUnifiedOverlay(overlayKey, overlayConfig) {
+  console.log(`🎨 Creating ${overlayKey} overlay:`, overlayConfig.id);
+  
   try {
+    // Ensure overlay core is injected
+    await injectOverlayCore();
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     const settings = await loadSettings();
-    let startWeek, endWeek, sprintNumber;
+    let overlayData;
     
-    if (type === 'blok') {
-      const blokConfig = getCurrentBlokConfig();
-      if (!blokConfig) {
-        throw new Error('No blok configuration found');
-      }
-      startWeek = blokConfig.startWeek;
-      endWeek = blokConfig.endWeek;
-      sprintNumber = 0; // Use 0 for blok in display logic
-    } else if (type === 'sprint') {
-      const sprintConfig = getSprintConfig(number, settings);
-      startWeek = sprintConfig.startWeek;
-      endWeek = sprintConfig.endWeek;
-      sprintNumber = number;
-    } else if (type === 'rooster_vrij') {
-      const roosterVrijConfig = settings.roosterVrij;
-      if (!roosterVrijConfig) {
-        throw new Error('No Rooster Vrij configuration found in settings');
-      }
-      startWeek = roosterVrijConfig.startWeek;
-      endWeek = roosterVrijConfig.endWeek;
-      sprintNumber = -1; // Use -1 for rooster_vrij to distinguish from blok (0) and sprints (1-3)
+    // Determine overlay parameters based on type
+    if (overlayConfig.type === 'week-range') {
+      overlayData = getWeekRangeData(overlayKey, settings);
+    } else if (overlayConfig.type === 'day-specific') {
+      overlayData = getDaySpecificData(overlayKey, settings);
     } else {
-      throw new Error(`Unknown overlay type: ${type}`);
+      throw new Error(`Unknown overlay type: ${overlayConfig.type}`);
     }
     
-    // Route to the appropriate overlay creation method
-    if (type === 'rooster_vrij') {
-      return await createRoosterVrijOverlay(startWeek, endWeek, calendarConfig);
-    } else {
-      return await select_sprint(sprintNumber, startWeek, endWeek, calendarConfig);
-    }
+    // Execute overlay creation in active tab
+    const result = await executeScriptInActiveTab((config, data, type) => {
+      if (!window.OverlayCore) {
+        throw new Error('OverlayCore not available in content script context');
+      }
+      
+      if (!window.overlayCore) {
+        window.overlayCore = new window.OverlayCore();
+      }
+      
+      try {
+        if (type === 'week-range') {
+          return window.overlayCore.createSprintOverlay(data.sprintNumber, data.startWeek, data.endWeek, config);
+        } else if (type === 'day-specific') {
+          return window.overlayCore.createDayOverlay(data.overlayType, data.weekNumber, data.dayNumber, config);
+        }
+      } catch (error) {
+        console.error('❌ Error in overlay creation:', error);
+        throw error;
+      }
+    }, [overlayConfig, overlayData, overlayConfig.type]);
+
+    return result[0]?.result || result;
   } catch (error) {
-    console.error(`❌ Error in ${type}${number || ''}:`, error);
+    console.error(`❌ Error creating ${overlayKey} overlay:`, error);
     return 'error';
   }
 }
 
-// Wrapper functions using the generic overlay function
+// Get week range data for sprint/blok overlays  
+function getWeekRangeData(overlayKey, settings) {
+  switch (overlayKey) {
+    case 'blok':
+      const blokConfig = getCurrentBlokConfig();
+      if (!blokConfig) throw new Error('No blok configuration found');
+      return { startWeek: blokConfig.startWeek, endWeek: blokConfig.endWeek, sprintNumber: 0 };
+      
+    case 'sprint1':
+      const sprint1Config = getSprintConfig(1, settings);
+      return { startWeek: sprint1Config.startWeek, endWeek: sprint1Config.endWeek, sprintNumber: 1 };
+      
+    case 'sprint2':
+      const sprint2Config = getSprintConfig(2, settings);
+      return { startWeek: sprint2Config.startWeek, endWeek: sprint2Config.endWeek, sprintNumber: 2 };
+      
+    case 'sprint3':
+      const sprint3Config = getSprintConfig(3, settings);
+      return { startWeek: sprint3Config.startWeek, endWeek: sprint3Config.endWeek, sprintNumber: 3 };
+      
+    case 'rooster_vrij':
+      const roosterVrijConfig = settings.roosterVrij;
+      if (!roosterVrijConfig) throw new Error('No Rooster Vrij configuration found');
+      return { startWeek: roosterVrijConfig.startWeek, endWeek: roosterVrijConfig.endWeek, sprintNumber: -1 };
+      
+    default:
+      throw new Error(`Unknown week-range overlay: ${overlayKey}`);
+  }
+}
+
+// Get day-specific data for test/assessment overlays
+function getDaySpecificData(overlayKey, settings) {
+  const blok = settings.bloks[getCurrentBlok()];
+  const module = blok?.modules[getCurrentModule()];
+  const course = module?.courses[overlayKey === 'toets' ? 'Toets' : 'Assessment'];
+  
+  if (!course || typeof course.weekNumber === 'undefined' || typeof course.dayNumber === 'undefined') {
+    throw new Error(`Invalid day-specific course configuration for ${overlayKey}`);
+  }
+  
+  return {
+    overlayType: course.name,
+    weekNumber: course.weekNumber,
+    dayNumber: course.dayNumber
+  };
+}
+
+// Simplified wrapper functions for backward compatibility
 async function select_blok(calendarConfig) {
-  return await createOverlay('blok', null, calendarConfig);
+  return await createUnifiedOverlay('blok', { ...calendarConfig, type: 'week-range' });
 }
 
 async function select_sprint1(calendarConfig) {
-  return await createOverlay('sprint', 1, calendarConfig);
+  return await createUnifiedOverlay('sprint1', { ...calendarConfig, type: 'week-range' });
 }
 
 async function select_sprint2(calendarConfig) {
-  return await createOverlay('sprint', 2, calendarConfig);
+  return await createUnifiedOverlay('sprint2', { ...calendarConfig, type: 'week-range' });
 }
 
 async function select_sprint3(calendarConfig) {
-  return await createOverlay('sprint', 3, calendarConfig);
-}
-
-// Rooster Vrij overlay creation function  
-async function createRoosterVrijOverlay(startWeek, endWeek, calendarConfig) {
-  console.log('🟣 Toggling Rooster Vrij overlay:', calendarConfig.id, `weeks ${startWeek}-${endWeek}`);
-  
-  try {
-    // Ensure overlay core is injected
-    await injectOverlayCore();
-    
-    // Brief delay since we now use proper script injection
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Execute the core overlay creation logic in the active tab
-    const result = await executeScriptInActiveTab((config, start, end) => {
-      console.log('🎯 Starting Rooster Vrij overlay creation with:', { config: config.id, start, end });
-      
-      if (!window.OverlayCore) {
-        throw new Error('OverlayCore not available in content script context');
-      }
-      
-      console.log('✅ OverlayCore found! Creating Rooster Vrij overlay...');
-      
-      // Initialize overlay core instance if not exists
-      if (!window.overlayCore) {
-        console.log('🏗️ Creating new OverlayCore instance...');
-        window.overlayCore = new window.OverlayCore();
-      }
-      
-      try {
-        // Call createRoosterVrijOverlay and return result
-        console.log('🎨 Calling createRoosterVrijOverlay...');
-        const result = window.overlayCore.createRoosterVrijOverlay(start, end, config);
-        console.log('🎉 Rooster Vrij overlay creation result:', result);
-        return result;
-      } catch (error) {
-        console.error('❌ Error in createRoosterVrijOverlay:', error);
-        throw error;
-      }
-    }, [calendarConfig, startWeek, endWeek]);
-
-    return result[0]?.result || result;
-  } catch (error) {
-    console.error(`❌ Error toggling Rooster Vrij overlay:`, error);
-    return 'error';
-  }
+  return await createUnifiedOverlay('sprint3', { ...calendarConfig, type: 'week-range' });
 }
 
 async function select_rooster_vrij(calendarConfig) {
-  return await createOverlay('rooster_vrij', null, calendarConfig);
+  return await createUnifiedOverlay('rooster_vrij', { ...calendarConfig, type: 'week-range' });
 }
 
-// Generic day-specific overlay function
-async function createDaySpecificOverlay(overlayType, weekNumber, dayNumber, calendarConfig) {
-  console.log(`📅 Toggling ${overlayType} overlay:`, calendarConfig.id);
-  
-  try {
-    // Ensure overlay core is injected
-    await injectOverlayCore();
-    
-    // Brief delay since we now use proper script injection
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Execute the day-specific overlay creation logic in the active tab
-    const result = await executeScriptInActiveTab((config, type, week, day) => {
-      console.log(`🎯 Starting ${type} overlay creation with:`, { config: config.id });
-      
-      if (!window.OverlayCore) {
-        throw new Error('OverlayCore not available in content script context');
-      }
-      
-      console.log(`✅ OverlayCore found! Creating ${type} overlay...`);
-      
-      // Initialize overlay core instance if not exists
-      if (!window.overlayCore) {
-        console.log('🏗️ Creating new OverlayCore instance...');
-        window.overlayCore = new window.OverlayCore();
-      }
-      
-      try {
-        // Call createDayOverlay and return result
-        console.log(`🎨 Calling createDayOverlay for ${type}...`);
-        const result = window.overlayCore.createDayOverlay(type, week, day, config);
-        console.log(`🎉 ${type} overlay creation result:`, result);
-        return result;
-      } catch (error) {
-        console.error('❌ Error in createDayOverlay:', error);
-        throw error;
-      }
-    }, [calendarConfig, overlayType, weekNumber, dayNumber]);
-
-    return result[0]?.result || result;
-  } catch (error) {
-    console.error(`❌ Error in ${overlayType} overlay:`, error);
-    return 'error';
-  }
-}
-
-// Toets overlay function - uses generic day-specific overlay
 async function select_toets(calendarConfig) {
-  return await createDaySpecificOverlay('Toets', 44, 30, calendarConfig);
+  return await createUnifiedOverlay('toets', { ...calendarConfig, type: 'day-specific' });
 }
 
-// Assessment overlay function - uses generic day-specific overlay
 async function select_assessment(calendarConfig) {
-  return await createDaySpecificOverlay('Assessment', 44, 31, calendarConfig);
+  return await createUnifiedOverlay('assessment', { ...calendarConfig, type: 'day-specific' });
 }
 

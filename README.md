@@ -4,11 +4,11 @@
 ![Manifest V3](https://img.shields.io/badge/manifest-v3-green?logo=googlechrome)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-A Chrome extension for HvA lecturers to display academic calendar overlays on the rooster application. Features hierarchical course structure with sprint-based and day-specific visual indicators, intelligent calendar detection, and bookmarklet support for managed environments.
+A Chrome extension for HvA lecturers to display academic calendar overlays on the rooster application. Features unified overlay system, centralized error handling, optimized logging, and dual deployment options for maximum compatibility.
 
 ## Architecture Overview
 
-The extension uses Chrome's Manifest V3 architecture with a modular JavaScript structure and settings-based configuration to dynamically create calendar-anchored overlays.
+The extension uses Chrome's Manifest V3 architecture with a streamlined, unified overlay system and centralized configuration management for reliable calendar-anchored overlays.
 
 ### Core Components
 
@@ -16,13 +16,14 @@ The extension uses Chrome's Manifest V3 architecture with a modular JavaScript s
 - **popup.html**: UI with course selector and overlay buttons (Blok, Sprints 1-3, Rooster Vrij, Toets, Assessment)
 - **settings.json**: Academic hierarchy with both sprint-based and day-specific courses
 - **bookmarklet/**: Standalone bookmarklet version for managed PC environments
-- **Modular JavaScript Architecture**:
-  - **overlay-core.js**: Centralized overlay creation library (shared with bookmarklet)
-  - **popup-main.js**: Main orchestration and event handling
-  - **config.js**: Backwards-compatible access to centralized constants
-  - **settings-loader.js**: Hierarchical settings loading and validation
-  - **calendar-overlays.js**: Calendar overlay functions with week detection
-  - **text-overlays.js**: Text overlay functionality
+- **Streamlined JavaScript Architecture**:
+  - **overlay-core.js**: Unified overlay creation library (shared with bookmarklet)
+  - **popup-main.js**: Main orchestration, page validation, and event handling
+  - **settings-loader.js**: Hierarchical settings with consolidated validation
+  - **calendar-overlays.js**: Unified overlay functions for all overlay types
+  - **shared-ui.js**: Centralized UI generation for both extension and bookmarklet
+  - **logger.js**: Centralized logging with production optimization
+  - **error-handler.js**: Standardized error handling patterns
 
 ## How It Works
 
@@ -55,15 +56,16 @@ overlay-extension/
 ├── manifest.json              # Extension configuration
 ├── popup.html                # UI with course selector and overlay buttons
 ├── settings.json             # Academic hierarchy with sprint and day-specific courses
-├── overlay-core.js           # Shared overlay library (used by both extension and bookmarklet)
+├── overlay-core.js           # Unified overlay library (shared with bookmarklet)
 ├── popup-main.js             # Main orchestration, page validation, event handling
-├── settings-loader.js        # Hierarchical settings with validation for both overlay types
-├── calendar-overlays.js      # Calendar overlay functions with sprint and day-specific support
-├── config.js                 # Backwards-compatible constants access
-├── text-overlays.js          # Text overlay functionality
+├── settings-loader.js        # Hierarchical settings with consolidated validation
+├── calendar-overlays.js      # Unified overlay functions for all overlay types
+├── logger.js                 # Centralized logging with production optimization
+├── error-handler.js          # Standardized error handling patterns
 bookmarklet/
-├── overlay-bookmarklet.js    # Self-contained bookmarklet version
+├── overlay-bookmarklet.js    # Self-contained bookmarklet with shared UI config
 ├── bookmarklet.html          # Installation page for bookmarklet
+shared-ui.js                  # Centralized UI generation for both deployment methods
 ico/                          # Extension icons
 ```
 
@@ -87,12 +89,13 @@ For troubleshooting issues, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 ## Technical Notes
 
-- **Dual deployment** - Chrome extension and bookmarklet versions
-- **Page validation** - Only works on rooster.hva.nl/schedule
-- **Mixed course types** - Sprint-based and day-specific overlay support
-- **Smart detection** - Overlays only appear when target periods found in calendar
+- **Unified overlay system** - Single parameterized function handles all overlay types
+- **Centralized configuration** - Shared UI and overlay configs between extension and bookmarklet
+- **Production-optimized logging** - Automatic debug log removal in production builds
+- **Standardized error handling** - Consistent error patterns with contextual logging
+- **Streamlined architecture** - 16% code reduction while maintaining full functionality
 - **No external dependencies** - Pure JavaScript with standard web APIs
 
 ---
 
-*Extension Version: 2.1 | Dual-deployment Architecture | Updated: 2025-08-30*
+*Extension Version: 2.2 | Unified Architecture | Updated: 2025-08-30*

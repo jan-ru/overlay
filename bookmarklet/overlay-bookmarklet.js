@@ -412,57 +412,93 @@
     return bookmarkletSettings.bloks[currentBlok];
   }
 
-  // Main overlay functions
-  function createOverlay(type, number, calendarConfig) {
-    let startWeek, endWeek, sprintNumber;
+  // Unified bookmarklet overlay creation function
+  async function createBookmarkletOverlay(overlayKey, overlayConfig) {
+    console.log(`🎨 Creating ${overlayKey} overlay`);
     
-    if (type === 'blok') {
-      const blokConfig = getCurrentBlokConfig();
-      startWeek = blokConfig.startWeek;
-      endWeek = blokConfig.endWeek;
-      sprintNumber = 0;
-    } else if (type === 'sprint') {
-      const sprintConfig = getSprintConfig(number);
-      startWeek = sprintConfig.startWeek;
-      endWeek = sprintConfig.endWeek;
-      sprintNumber = number;
-    } else if (type === 'rooster_vrij') {
-      const roosterVrijConfig = bookmarkletSettings.roosterVrij;
-      startWeek = roosterVrijConfig.startWeek;
-      endWeek = roosterVrijConfig.endWeek;
-      sprintNumber = -1; // Use -1 for rooster_vrij
-    }
-    
-    return overlayCore.createSprintOverlay(sprintNumber, startWeek, endWeek, calendarConfig);
-  }
-
-  // Day-specific overlay function for Toets and Assessment
-  function createDayOverlay(courseKey, calendarConfig) {
-    const blok = bookmarkletSettings.bloks[currentBlok];
-    const module = blok.modules[currentModule];
-    const course = module.courses[courseKey];
-    
-    if (!course || typeof course.weekNumber === 'undefined' || typeof course.dayNumber === 'undefined') {
-      console.error(`Invalid day-specific course configuration for ${courseKey}`);
+    try {
+      let overlayData;
+      const overlayId = `custom-overlay-${overlayKey}`;
+      
+      // Check for existing overlay first
+      const existing = document.getElementById(overlayId);
+      if (existing) {
+        existing.remove();
+        console.log('🗑️ Removed existing overlay');
+        return 'removed';
+      }
+      
+      // Determine overlay parameters based on type
+      if (overlayConfig.type === 'week-range') {
+        overlayData = getBookmarkletWeekRangeData(overlayKey);
+        return overlayCore.createSprintOverlay(overlayData.sprintNumber, overlayData.startWeek, overlayData.endWeek, 
+          { ...overlayConfig, overlayId });
+      } else if (overlayConfig.type === 'day-specific') {
+        overlayData = getBookmarkletDaySpecificData(overlayKey);
+        return createBookmarkletDayOverlay(overlayData, { ...overlayConfig, overlayId });
+      }
+      
+      throw new Error(`Unknown overlay type: ${overlayConfig.type}`);
+    } catch (error) {
+      console.error(`❌ Error creating ${overlayKey} overlay:`, error);
       return 'error';
     }
+  }
 
-    // For simplicity, create a basic day overlay (could be enhanced to match full extension functionality)
-    const existing = document.getElementById(calendarConfig.overlayId);
-    
-    if (existing) {
-      existing.remove();
-      return 'removed';
+  // Get week range data for bookmarklet overlays
+  function getBookmarkletWeekRangeData(overlayKey) {
+    switch (overlayKey) {
+      case 'blok':
+        const blokConfig = getCurrentBlokConfig();
+        return { startWeek: blokConfig.startWeek, endWeek: blokConfig.endWeek, sprintNumber: 0 };
+        
+      case 'sprint1':
+        const sprint1Config = getSprintConfig(1);
+        return { startWeek: sprint1Config.startWeek, endWeek: sprint1Config.endWeek, sprintNumber: 1 };
+        
+      case 'sprint2':
+        const sprint2Config = getSprintConfig(2);
+        return { startWeek: sprint2Config.startWeek, endWeek: sprint2Config.endWeek, sprintNumber: 2 };
+        
+      case 'sprint3':
+        const sprint3Config = getSprintConfig(3);
+        return { startWeek: sprint3Config.startWeek, endWeek: sprint3Config.endWeek, sprintNumber: 3 };
+        
+      case 'rooster_vrij':
+        const roosterVrijConfig = bookmarkletSettings.roosterVrij;
+        return { startWeek: roosterVrijConfig.startWeek, endWeek: roosterVrijConfig.endWeek, sprintNumber: -1 };
+        
+      default:
+        throw new Error(`Unknown week-range overlay: ${overlayKey}`);
     }
+  }
 
-    // Create a simple overlay for the day (basic implementation)
+  // Get day-specific data for bookmarklet overlays
+  function getBookmarkletDaySpecificData(overlayKey) {
+    const blok = bookmarkletSettings.bloks[currentBlok];
+    const module = blok.modules[currentModule];
+    const course = module.courses[overlayKey === 'toets' ? 'Toets' : 'Assessment'];
+    
+    if (!course || typeof course.weekNumber === 'undefined' || typeof course.dayNumber === 'undefined') {
+      throw new Error(`Invalid day-specific course configuration for ${overlayKey}`);
+    }
+    
+    return {
+      name: course.name,
+      weekNumber: course.weekNumber,
+      dayNumber: course.dayNumber
+    };
+  }
+
+  // Simple day overlay implementation for bookmarklet
+  function createBookmarkletDayOverlay(dayData, config) {
     const overlay = document.createElement('div');
-    overlay.id = calendarConfig.overlayId;
+    overlay.id = config.overlayId;
     overlay.style.cssText = `
       position: fixed;
       top: 200px;
       right: 10px;
-      background: ${calendarConfig.color};
+      background: ${config.color};
       padding: 10px;
       border-radius: 5px;
       color: white;
@@ -470,7 +506,7 @@
       z-index: 1000000;
       pointer-events: none;
     `;
-    overlay.textContent = `${course.name} - Week ${course.weekNumber}, Day ${course.dayNumber}`;
+    overlay.textContent = `${dayData.name} - Week ${dayData.weekNumber}, Day ${dayData.dayNumber}`;
     document.body.appendChild(overlay);
     
     return 'created';
@@ -501,79 +537,78 @@
       min-width: 120px;
     `;
 
+    // Use shared UI configuration (inline for bookmarklet compatibility)
+    const SHARED_UI_CONFIG = {
+      title: "Calendar Overlays", 
+      overlayConfigs: {
+        blok: { id: "select_blok", label: "Blok", color: "rgba(128,128,128,0.3)", type: "week-range" },
+        sprint1: { id: "select_sprint1", label: "Sprint 1", color: "rgba(0,255,0,0.3)", type: "week-range" },
+        sprint2: { id: "select_sprint2", label: "Sprint 2", color: "rgba(255,165,0,0.3)", type: "week-range" },  
+        sprint3: { id: "select_sprint3", label: "Sprint 3", color: "rgba(0,0,255,0.3)", type: "week-range" },
+        rooster_vrij: { id: "select_rooster_vrij", label: "Rooster Vrij", color: "rgba(128,0,128,0.3)", type: "week-range" },
+        toets: { id: "select_toets", label: "Toets", color: "rgba(255,255,0,0.3)", type: "day-specific" },
+        assessment: { id: "select_assessment", label: "Assessment", color: "rgba(255,0,255,0.3)", type: "day-specific" }
+      },
+      courses: [
+        { value: "Operations", label: "Operations" },
+        { value: "GRC", label: "GRC" },
+        { value: "Toets", label: "Toets" },
+        { value: "Assessment", label: "Assessment" }
+      ]
+    };
+
     ui.innerHTML = `
       <div style="margin-bottom: 10px; font-weight: bold; text-align: center; color: #333;">
-        ${bookmarkletSettings.moduleName}
+        ${SHARED_UI_CONFIG.title}
       </div>
       <div style="margin-bottom: 10px;">
-        <select id="bookmarklet-course" style="width: 100%; padding: 3px;">
-          <option value="Operations">Operations</option>
-          <option value="GRC">GRC</option>
-          <option value="Toets">Toets</option>
-          <option value="Assessment">Assessment</option>
+        <label for="bookmarklet-course-select" style="display: block; margin-bottom: 5px; font-weight: bold;">Course:</label>
+        <select id="bookmarklet-course-select" style="width: 120px; padding: 5px;">
+          ${SHARED_UI_CONFIG.courses.map(course => 
+            `<option value="${course.value}">${course.label}</option>`
+          ).join('')}
         </select>
       </div>
       <div style="display: flex; flex-direction: column; gap: 5px;">
-        <button id="bookmarklet-blok" style="padding: 5px; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer; border-radius: 3px;">Blok</button>
-        <button id="bookmarklet-sprint1" style="padding: 5px; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer; border-radius: 3px;">Sprint 1</button>
-        <button id="bookmarklet-sprint2" style="padding: 5px; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer; border-radius: 3px;">Sprint 2</button>
-        <button id="bookmarklet-sprint3" style="padding: 5px; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer; border-radius: 3px;">Sprint 3</button>
-        <button id="bookmarklet-rooster-vrij" style="padding: 5px; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer; border-radius: 3px;">Rooster Vrij</button>
-        <button id="bookmarklet-toets" style="padding: 5px; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer; border-radius: 3px;">Toets</button>
-        <button id="bookmarklet-assessment" style="padding: 5px; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer; border-radius: 3px;">Assessment</button>
-        <button id="bookmarklet-close" style="padding: 5px; border: 1px solid #ddd; background: #ffdddd; cursor: pointer; border-radius: 3px; margin-top: 5px;">Close</button>
+        ${Object.entries(SHARED_UI_CONFIG.overlayConfigs).map(([key, config]) => 
+          `<button id="bookmarklet-${key}" style="padding: 5px; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer; border-radius: 3px; width: 120px;">${config.label}</button>`
+        ).join('')}
+        <button id="bookmarklet-close" style="padding: 5px; border: 1px solid #ddd; background: #ffdddd; cursor: pointer; border-radius: 3px; margin-top: 5px; width: 120px;">Close</button>
       </div>
     `;
 
     document.body.appendChild(ui);
 
     // Course selector
-    const courseSelect = ui.querySelector('#bookmarklet-course');
+    const courseSelect = ui.querySelector('#bookmarklet-course-select');
     courseSelect.value = currentCourse;
     courseSelect.addEventListener('change', (e) => {
       currentCourse = e.target.value;
       console.log('Course changed to:', currentCourse);
     });
 
-    // Button handlers
-    const configs = window.OVERLAY_CORE_CONFIG.CALENDAR_CONFIGS;
-    
-    ui.querySelector('#bookmarklet-blok').addEventListener('click', () => {
-      const result = createOverlay('blok', null, configs[0]);
-      console.log('Blok overlay:', result);
-    });
-
-    ui.querySelector('#bookmarklet-sprint1').addEventListener('click', () => {
-      const result = createOverlay('sprint', 1, configs[1]);
-      console.log('Sprint 1 overlay:', result);
-    });
-
-    ui.querySelector('#bookmarklet-sprint2').addEventListener('click', () => {
-      const result = createOverlay('sprint', 2, configs[2]);
-      console.log('Sprint 2 overlay:', result);
-    });
-
-    ui.querySelector('#bookmarklet-sprint3').addEventListener('click', () => {
-      const result = createOverlay('sprint', 3, configs[3]);
-      console.log('Sprint 3 overlay:', result);
-    });
-
-    ui.querySelector('#bookmarklet-rooster-vrij').addEventListener('click', () => {
-      const roosterVrijConfig = { id: "select_rooster_vrij", color: "rgba(128,0,128,0.3)", overlayId: "custom-overlay-rooster-vrij" };
-      const result = createOverlay('rooster_vrij', null, roosterVrijConfig);
-      console.log('Rooster Vrij overlay:', result);
-    });
-
-    ui.querySelector('#bookmarklet-toets').addEventListener('click', () => {
-      const toetsConfig = { id: "select_toets", color: "rgba(255,255,0,0.3)", overlayId: "custom-overlay-toets" };
-      const result = createDayOverlay('Toets', toetsConfig);
-      console.log('Toets overlay:', result);
-    });
-
-    ui.querySelector('#bookmarklet-assessment').addEventListener('click', () => {
-      const assessmentConfig = { id: "select_assessment", color: "rgba(255,0,255,0.3)", overlayId: "custom-overlay-assessment" };
-      const result = createDayOverlay('Assessment', assessmentConfig);
-      console.log('Assessment overlay:', result);
+    // Unified event handler setup using shared configuration
+    Object.entries(SHARED_UI_CONFIG.overlayConfigs).forEach(([overlayKey, config]) => {
+      const button = ui.querySelector(`#bookmarklet-${overlayKey}`);
+      if (button) {
+        button.addEventListener('click', async () => {
+          try {
+            const result = await createBookmarkletOverlay(overlayKey, config);
+            console.log(`${config.label} overlay:`, result);
+            
+            // Update button appearance based on state
+            if (result === 'created') {
+              button.style.backgroundColor = config.color.replace('0.3', '0.8');
+              button.style.color = 'white';
+            } else if (result === 'removed') {
+              button.style.backgroundColor = '#f9f9f9';
+              button.style.color = '';
+            }
+          } catch (error) {
+            console.error(`❌ Error with ${overlayKey}:`, error);
+          }
+        });
+      }
     });
 
     ui.querySelector('#bookmarklet-close').addEventListener('click', () => {

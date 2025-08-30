@@ -29,63 +29,15 @@ async function loadSettings() {
       throw new Error('Missing bloks configuration in settings.json');
     }
     
-    // Validate each blok
+    // Consolidated validation using helper functions
     Object.entries(settings.bloks).forEach(([blokKey, blok]) => {
-      if (!blok.name) {
-        throw new Error(`Missing name for blok ${blokKey}`);
-      }
-      
-      if (typeof blok.startWeek !== 'number' || typeof blok.endWeek !== 'number') {
-        throw new Error(`Invalid week numbers in blok ${blokKey}: startWeek and endWeek must be numbers`);
-      }
-      
-      if (blok.startWeek > blok.endWeek) {
-        throw new Error(`Invalid week range in blok ${blokKey}: startWeek cannot be greater than endWeek`);
-      }
-      
-      // Validate modules within blok
+      validateBlok(blokKey, blok);
       if (blok.modules) {
         Object.entries(blok.modules).forEach(([moduleKey, module]) => {
-          if (!module.name || !module.moduleCode) {
-            throw new Error(`Missing name or moduleCode for module ${moduleKey} in blok ${blokKey}`);
-          }
-          
-          if (typeof module.startWeek !== 'number' || typeof module.endWeek !== 'number') {
-            throw new Error(`Invalid week numbers in module ${moduleKey}: startWeek and endWeek must be numbers`);
-          }
-          
-          // Validate courses within module
+          validateModule(blokKey, moduleKey, module);
           if (module.courses) {
             Object.entries(module.courses).forEach(([courseKey, course]) => {
-              if (!course.name) {
-                throw new Error(`Missing name for course ${courseKey} in module ${moduleKey}`);
-              }
-              
-              // Check if this is a day-specific course (Toets/Assessment) or sprint-based course
-              const isDaySpecific = course.weekNumber !== undefined && course.dayNumber !== undefined;
-              const isSprintBased = course.sprint1 && course.sprint2 && course.sprint3;
-              
-              if (!isDaySpecific && !isSprintBased) {
-                throw new Error(`Course ${courseKey} must have either sprint configurations (sprint1, sprint2, sprint3) or day-specific configuration (weekNumber, dayNumber)`);
-              }
-              
-              if (isDaySpecific) {
-                // Validate day-specific course configuration
-                if (typeof course.weekNumber !== 'number' || typeof course.dayNumber !== 'number') {
-                  throw new Error(`Invalid day-specific configuration in course ${courseKey}: weekNumber and dayNumber must be numbers`);
-                }
-              } else {
-                // Validate sprint-based course configuration
-                ['sprint1', 'sprint2', 'sprint3'].forEach(sprintKey => {
-                  const sprint = course[sprintKey];
-                  if (typeof sprint.startWeek !== 'number' || typeof sprint.endWeek !== 'number') {
-                    throw new Error(`Invalid week numbers in ${courseKey}.${sprintKey}: startWeek and endWeek must be numbers`);
-                  }
-                  if (sprint.startWeek > sprint.endWeek) {
-                    throw new Error(`Invalid week range in ${courseKey}.${sprintKey}: startWeek cannot be greater than endWeek`);
-                  }
-                });
-              }
+              validateCourse(moduleKey, courseKey, course);
             });
           }
         });
@@ -327,4 +279,57 @@ function getCurrentSelectionInfo() {
     module: { key: currentModule, name: module.name, code: module.moduleCode },
     course: { key: currentCourse, name: course.name }
   };
+}
+
+// Consolidated validation helper functions
+function validateWeekRange(startWeek, endWeek, context) {
+  if (typeof startWeek !== 'number' || typeof endWeek !== 'number') {
+    throw new Error(`Invalid week numbers in ${context}: startWeek and endWeek must be numbers`);
+  }
+  if (startWeek > endWeek) {
+    throw new Error(`Invalid week range in ${context}: startWeek cannot be greater than endWeek`);
+  }
+}
+
+function validateBlok(blokKey, blok) {
+  if (!blok.name) {
+    throw new Error(`Missing name for blok ${blokKey}`);
+  }
+  validateWeekRange(blok.startWeek, blok.endWeek, `blok ${blokKey}`);
+}
+
+function validateModule(blokKey, moduleKey, module) {
+  if (!module.name || !module.moduleCode) {
+    throw new Error(`Missing name or moduleCode for module ${moduleKey} in blok ${blokKey}`);
+  }
+  validateWeekRange(module.startWeek, module.endWeek, `module ${moduleKey}`);
+}
+
+function validateCourse(moduleKey, courseKey, course) {
+  if (!course.name) {
+    throw new Error(`Missing name for course ${courseKey} in module ${moduleKey}`);
+  }
+  
+  // Check course type and validate accordingly
+  const isDaySpecific = course.weekNumber !== undefined && course.dayNumber !== undefined;
+  const isSprintBased = course.sprint1 && course.sprint2 && course.sprint3;
+  
+  if (!isDaySpecific && !isSprintBased) {
+    throw new Error(`Course ${courseKey} must have either sprint configurations (sprint1, sprint2, sprint3) or day-specific configuration (weekNumber, dayNumber)`);
+  }
+  
+  if (isDaySpecific) {
+    if (typeof course.weekNumber !== 'number' || typeof course.dayNumber !== 'number') {
+      throw new Error(`Invalid day-specific configuration in course ${courseKey}: weekNumber and dayNumber must be numbers`);
+    }
+  } else {
+    // Validate sprint-based course
+    ['sprint1', 'sprint2', 'sprint3'].forEach(sprintKey => {
+      const sprint = course[sprintKey];
+      if (!sprint) {
+        throw new Error(`Missing ${sprintKey} in course ${courseKey}`);
+      }
+      validateWeekRange(sprint.startWeek, sprint.endWeek, `${courseKey}.${sprintKey}`);
+    });
+  }
 }

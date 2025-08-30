@@ -18,12 +18,14 @@ async function validateCurrentPage() {
       }
 
       const currentUrl = tabs[0].url;
-      console.log('Current page URL:', currentUrl);
+      console.log('🔍 Extension checking URL:', currentUrl);
+      console.log('🔍 Expected URL pattern: https://rooster.hva.nl/schedule');
+      console.log('🔍 URL starts with pattern:', currentUrl ? currentUrl.startsWith('https://rooster.hva.nl/schedule') : 'null');
       
       // Check if URL matches the required pattern
       const isValidPage = currentUrl && currentUrl.startsWith('https://rooster.hva.nl/schedule');
       
-      console.log('Page validation result:', isValidPage ? '✅ Valid' : '❌ Invalid');
+      console.log('🔍 Page validation result:', isValidPage ? '✅ Valid' : '❌ Invalid');
       resolve(isValidPage);
     });
   });
@@ -160,6 +162,7 @@ function setupEventListeners() {
   let isProcessing = false;
   
   // Calendar overlay buttons - Day, Week, Month
+  const CALENDAR_CONFIGS = window.OVERLAY_CORE_CONFIG?.CALENDAR_CONFIGS || [];
   CALENDAR_CONFIGS.forEach(config => {
     const button = document.getElementById(config.id);
     console.log(`Looking for calendar button "${config.id}":`, button ? '✅ found' : '❌ not found');
@@ -233,13 +236,14 @@ if (document.readyState === 'loading') {
   initializeExtension();
 }
 
-// Update title with module name from settings
+// Update title with consistent naming
 function updateTitle() {
   try {
     const titleElement = document.getElementById('calendar-overlays-title');
-    if (titleElement && cachedSettings) {
-      const moduleText = cachedSettings.moduleName || 'Calendar Overlays';
-      titleElement.textContent = moduleText;
+    if (titleElement) {
+      // Use consistent title across both extension and bookmarklet
+      const titleText = 'Calendar Overlays';
+      titleElement.textContent = titleText;
       logger.debug('✅ Title updated to:', titleElement.textContent);
     }
   } catch (error) {

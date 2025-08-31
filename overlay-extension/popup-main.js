@@ -1,19 +1,29 @@
 // Main popup orchestration file
 // This file coordinates all overlay functionality
 
-// URL validation function
+// URL validation function using standardized error handling
 async function validateCurrentPage() {
   return new Promise((resolve) => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (chrome.runtime.lastError) {
-        console.error('Tab query error:', chrome.runtime.lastError);
-        resolve(false);
+        const error = errorHandler.createError(
+          ERROR_CODES.CHROME_API_ERROR,
+          chrome.runtime.lastError.message,
+          'validateCurrentPage'
+        );
+        console.error('Tab query error:', error);
+        resolve(error);
         return;
       }
       
       if (!tabs || !tabs[0]) {
-        console.error('No active tab found');
-        resolve(false);
+        const error = errorHandler.createError(
+          ERROR_CODES.TAB_ACCESS_DENIED,
+          'No active tab found',
+          'validateCurrentPage'
+        );
+        console.error('No active tab found:', error);
+        resolve(error);
         return;
       }
 
@@ -26,180 +36,71 @@ async function validateCurrentPage() {
       const isValidPage = currentUrl && currentUrl.startsWith('https://rooster.hva.nl/schedule');
       
       console.log('🔍 Page validation result:', isValidPage ? '✅ Valid' : '❌ Invalid');
-      resolve(isValidPage);
+      
+      if (isValidPage) {
+        resolve(errorHandler.createSuccess(true, 'Page validation passed', 'validateCurrentPage'));
+      } else {
+        resolve(errorHandler.createError(
+          ERROR_CODES.INVALID_URL,
+          'Extension only works on https://rooster.hva.nl/schedule pages',
+          'validateCurrentPage'
+        ));
+      }
     });
   });
 }
 
-// View detection and switching functionality
+// View detection and switching using shared utility
 async function detectAndSwitchToMaandView() {
   console.log('🎯 Detecting current view and switching to Maand if needed...');
   
   try {
-    // First, inject the detection function into the page
-    const detectionResult = await executeScriptInActiveTab(() => {
-      function detectActiveView() {
-        console.log('🎯 Detecting active view...');
-        
-        const viewNames = ['Dag', 'Week', 'Maand', 'Lijst'];
-        
-        for (const viewName of viewNames) {
-          const xpath = `//*[text()='${viewName}']`;
-          const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-          
-          if (result.singleNodeValue) {
-            const element = result.singleNodeValue;
-            
-            // Check element and parents for pressed/active indicators
-            let current = element;
-            
-            for (let i = 0; i < 4 && current; i++) {
-              const styles = window.getComputedStyle(current);
-              
-              // Look for any non-transparent, non-white background
-              const bg = styles.backgroundColor;
-              const bgImage = styles.backgroundImage;
-              
-              if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'rgb(255, 255, 255)' && bg !== 'transparent') {
-                console.log(`✅ Active view detected: "${viewName}" (background: ${bg})`);
-                return viewName;
-              }
-              
-              if (bgImage && bgImage !== 'none') {
-                console.log(`✅ Active view detected: "${viewName}" (background image: ${bgImage})`);
-                return viewName;
-              }
-              
-              // Check for pressed/selected attributes
-              if (current.getAttribute('aria-pressed') === 'true' ||
-                  current.getAttribute('aria-selected') === 'true' ||
-                  current.classList.contains('pressed') ||
-                  current.classList.contains('selected') ||
-                  current.classList.contains('active')) {
-                console.log(`✅ Active view detected: "${viewName}" (has active attribute/class)`);
-                return viewName;
-              }
-              
-              current = current.parentElement;
-            }
-          }
-        }
-        
-        console.log('❌ No active view detected');
-        return null;
+    // Inject view detection utility and perform async detection/switching
+    const result = await executeScriptInActiveTab(async () => {
+      // Ensure ViewDetectionCore is available in the page context
+      if (typeof ViewDetectionCore === 'undefined') {
+        console.error('❌ ViewDetectionCore not available in page context');
+        return {
+          success: false,
+          error: 'VIEW_DETECTION_CORE_MISSING',
+          message: 'ViewDetectionCore utility not loaded'
+        };
       }
-
-      return detectActiveView();
+      
+      const detector = new ViewDetectionCore();
+      return await detector.ensureMaandViewAsync();
     });
 
-    const currentView = detectionResult[0]?.result;
-    console.log('🔍 Current view detected:', currentView);
-
-    if (!currentView) {
-      console.warn('⚠️ Could not detect current view - proceeding anyway');
-      return { success: false, message: 'Could not detect current view' };
+    // Extract result from Chrome extension API response
+    const viewResult = result[0]?.result;
+    
+    if (!viewResult) {
+      return errorHandler.createError(
+        ERROR_CODES.SCRIPT_INJECTION_DENIED,
+        'Failed to execute view detection script',
+        'detectAndSwitchToMaandView'
+      );
     }
 
-    if (currentView === 'Maand') {
-      console.log('✅ Already in Maand view');
-      return { success: true, message: 'Already in Maand view', switched: false };
+    // Check if the result indicates an error
+    if (!viewResult.success) {
+      return errorHandler.createError(
+        ERROR_CODES.VIEW_NOT_DETECTED,
+        viewResult.message || 'View detection failed',
+        'detectAndSwitchToMaandView',
+        viewResult.error
+      );
     }
 
-    console.log(`🔄 Current view is "${currentView}", switching to Maand...`);
-
-    // Switch to Maand view
-    const switchResult = await executeScriptInActiveTab(() => {
-      function switchToView(targetView) {
-        console.log(`🔄 Switching to "${targetView}" view...`);
-        
-        const xpath = `//*[text()='${targetView}']`;
-        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-        
-        if (!result.singleNodeValue) {
-          console.error(`❌ Button for "${targetView}" not found`);
-          return false;
-        }
-        
-        const element = result.singleNodeValue;
-        
-        // Find the clickable parent
-        let clickableElement = element;
-        
-        while (clickableElement && 
-               !['BUTTON', 'TD', 'A'].includes(clickableElement.tagName) && 
-               !clickableElement.onclick &&
-               clickableElement.style.cursor !== 'pointer') {
-          clickableElement = clickableElement.parentElement;
-          if (!clickableElement) break;
-        }
-        
-        if (!clickableElement) clickableElement = element;
-        
-        console.log(`🖱️ Clicking element:`, clickableElement);
-        
-        try {
-          // Try regular click
-          clickableElement.click();
-          console.log(`✅ Successfully clicked "${targetView}" button`);
-          return true;
-        } catch (error) {
-          console.error('❌ Click failed:', error);
-          return false;
-        }
-      }
-
-      return switchToView('Maand');
-    });
-
-    const switched = switchResult[0]?.result;
-
-    if (switched) {
-      // Wait for view change and verify
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const verifyResult = await executeScriptInActiveTab(() => {
-        const xpath = `//*[text()='Maand']`;
-        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-        
-        if (result.singleNodeValue) {
-          const element = result.singleNodeValue;
-          let current = element;
-          
-          for (let i = 0; i < 4 && current; i++) {
-            const styles = window.getComputedStyle(current);
-            const bg = styles.backgroundColor;
-            
-            if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'rgb(255, 255, 255)' && bg !== 'transparent') {
-              console.log('✅ Switch to Maand view confirmed');
-              return true;
-            }
-            current = current.parentElement;
-          }
-        }
-        
-        console.warn('⚠️ Switch may not have completed');
-        return false;
-      });
-
-      const verified = verifyResult[0]?.result;
-      
-      return {
-        success: true,
-        message: `Switched from ${currentView} to Maand`,
-        switched: true,
-        previousView: currentView,
-        verified: verified
-      };
-    } else {
-      return {
-        success: false,
-        message: `Failed to switch from ${currentView} to Maand`
-      };
-    }
+    return errorHandler.createSuccess(viewResult, 'View detection completed', 'detectAndSwitchToMaandView');
 
   } catch (error) {
-    console.error('❌ Error during view detection/switching:', error);
-    return { success: false, message: 'Error during view detection/switching', error: error.message };
+    return errorHandler.createError(
+      ERROR_CODES.SCRIPT_INJECTION_DENIED,
+      `Error during view detection/switching: ${error.message}`,
+      'detectAndSwitchToMaandView',
+      error
+    );
   }
 }
 
@@ -528,16 +429,17 @@ function clearAllOverlays() {
   logger.debug('🧹 Clearing all overlays on course change');
 }
 
-// Main initialization function
+// Main initialization function with standardized error handling
 async function initializeExtension() {
   try {
     // First validate that we're on the correct page
     console.log('🔍 Validating current page...');
-    const isValidPage = await validateCurrentPage();
+    const pageValidationResult = await validateCurrentPage();
     
-    if (!isValidPage) {
+    if (!pageValidationResult.success) {
       // Show error message and deactivate extension
       showPageError();
+      console.error('❌ Page validation failed:', errorHandler.formatForUser(pageValidationResult));
       return; // Stop initialization - extension is deactivated
     }
     
@@ -548,14 +450,18 @@ async function initializeExtension() {
     console.log('🎯 Checking view and switching to Maand if needed...');
     const viewResult = await detectAndSwitchToMaandView();
     
-    if (viewResult.switched) {
-      console.log(`✅ View switched successfully: ${viewResult.message}`);
-      // Show user feedback about view switching
-      showViewSwitchFeedback(viewResult);
-    } else if (viewResult.success && !viewResult.switched) {
-      console.log('✅ Already in correct view');
+    if (viewResult.success) {
+      const viewData = viewResult.data;
+      if (viewData.switched) {
+        console.log(`✅ View switched successfully: ${viewData.message}`);
+        // Show user feedback about view switching
+        showViewSwitchFeedback(viewData);
+      } else if (viewData.success && !viewData.switched) {
+        console.log('✅ Already in correct view');
+      }
     } else {
       console.warn('⚠️ View detection/switching failed, but continuing with initialization');
+      console.warn('View detection error:', errorHandler.formatForUser(viewResult));
     }
     
     // Load settings first
@@ -576,7 +482,13 @@ async function initializeExtension() {
     setupEventListeners();
     
   } catch (error) {
-    console.error('❌ Failed to initialize extension:', error);
+    const initError = errorHandler.createError(
+      ERROR_CODES.UI_ELEMENT_MISSING,
+      `Failed to initialize extension: ${error.message}`,
+      'initializeExtension',
+      error
+    );
+    console.error('❌ Initialization failed:', errorHandler.formatForUser(initError));
     // Show error and deactivate extension
     showPageError();
   }

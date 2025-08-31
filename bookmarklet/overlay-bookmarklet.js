@@ -10,145 +10,187 @@
   }
   window.overlayBookmarkletLoaded = true;
 
-  // View detection and switching functionality
-  function detectActiveView() {
-    console.log('🎯 Detecting active view...');
-    
-    const viewNames = ['Dag', 'Week', 'Maand', 'Lijst'];
-    
-    for (const viewName of viewNames) {
-      const xpath = `//*[text()='${viewName}']`;
-      const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+  // Inline utility functions for bookmarklet compatibility
+  // Note: For bookmarklet, we inline the utilities to keep it self-contained
+  
+  // Configuration constants (inline)
+  const VIEW_DETECTION_CONFIG = {
+    VIEW_NAMES: ['Dag', 'Week', 'Maand', 'Lijst'],
+    DOM_TRAVERSAL_LEVELS: 4,
+    SWITCH_VERIFICATION_DELAY: 800,
+    NOTIFICATION_DISPLAY_DURATION: 3000,
+    TARGET_VIEW: 'Maand'
+  };
+
+  // Simple error handling for bookmarklet
+  function createBookmarkletError(message, context) {
+    console.error(`❌ [${context}] ${message}`);
+    return { success: false, message: message, context: context };
+  }
+
+  function createBookmarkletSuccess(data, message, context) {
+    console.log(`✅ [${context}] ${message}`);
+    return { success: true, data: data, message: message, context: context };
+  }
+
+  // Inline view detection utility
+  class BookmarkletViewDetection {
+    detectActiveView() {
+      console.log('🎯 Detecting active view...');
       
-      if (result.singleNodeValue) {
-        const element = result.singleNodeValue;
+      for (const viewName of VIEW_DETECTION_CONFIG.VIEW_NAMES) {
+        const xpath = `//*[text()='${viewName}']`;
+        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
         
-        // Check element and parents for pressed/active indicators
-        let current = element;
-        
-        for (let i = 0; i < 4 && current; i++) {
-          const styles = window.getComputedStyle(current);
+        if (result.singleNodeValue) {
+          const element = result.singleNodeValue;
+          const detectedView = this._checkElementForActiveState(element, viewName);
           
-          // Look for any non-transparent, non-white background
-          const bg = styles.backgroundColor;
-          const bgImage = styles.backgroundImage;
-          
-          if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'rgb(255, 255, 255)' && bg !== 'transparent') {
-            console.log(`✅ Active view detected: "${viewName}" (background: ${bg})`);
-            return viewName;
+          if (detectedView) {
+            return createBookmarkletSuccess(detectedView, `Active view detected: ${detectedView}`, 'detectActiveView');
           }
-          
-          if (bgImage && bgImage !== 'none') {
-            console.log(`✅ Active view detected: "${viewName}" (background image: ${bgImage})`);
-            return viewName;
-          }
-          
-          // Check for pressed/selected attributes
-          if (current.getAttribute('aria-pressed') === 'true' ||
-              current.getAttribute('aria-selected') === 'true' ||
-              current.classList.contains('pressed') ||
-              current.classList.contains('selected') ||
-              current.classList.contains('active')) {
-            console.log(`✅ Active view detected: "${viewName}" (has active attribute/class)`);
-            return viewName;
-          }
-          
-          current = current.parentElement;
         }
       }
-    }
-    
-    console.log('❌ No active view detected');
-    return null;
-  }
-
-  function switchToView(targetView) {
-    console.log(`🔄 Switching to "${targetView}" view...`);
-    
-    const xpath = `//*[text()='${targetView}']`;
-    const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-    
-    if (!result.singleNodeValue) {
-      console.error(`❌ Button for "${targetView}" not found`);
-      return false;
-    }
-    
-    const element = result.singleNodeValue;
-    
-    // Find the clickable parent
-    let clickableElement = element;
-    
-    while (clickableElement && 
-           !['BUTTON', 'TD', 'A'].includes(clickableElement.tagName) && 
-           !clickableElement.onclick &&
-           clickableElement.style.cursor !== 'pointer') {
-      clickableElement = clickableElement.parentElement;
-      if (!clickableElement) break;
-    }
-    
-    if (!clickableElement) clickableElement = element;
-    
-    console.log(`🖱️ Clicking element:`, clickableElement);
-    
-    try {
-      // Try regular click
-      clickableElement.click();
-      console.log(`✅ Successfully clicked "${targetView}" button`);
-      return true;
-    } catch (error) {
-      console.error('❌ Click failed:', error);
-      return false;
-    }
-  }
-
-  function detectAndSwitchToMaandView() {
-    console.log('🎯 Detecting current view and switching to Maand if needed...');
-    
-    const currentView = detectActiveView();
-    console.log('🔍 Current view detected:', currentView);
-
-    if (!currentView) {
-      console.warn('⚠️ Could not detect current view - proceeding anyway');
-      return { success: false, message: 'Could not detect current view' };
+      
+      console.log('❌ No active view detected');
+      return createBookmarkletError('No active view detected', 'detectActiveView');
     }
 
-    if (currentView === 'Maand') {
-      console.log('✅ Already in Maand view');
-      return { success: true, message: 'Already in Maand view', switched: false };
+    switchToView(targetView) {
+      console.log(`🔄 Switching to "${targetView}" view...`);
+      
+      if (!VIEW_DETECTION_CONFIG.VIEW_NAMES.includes(targetView)) {
+        return createBookmarkletError(`Invalid view: "${targetView}"`, 'switchToView');
+      }
+      
+      const xpath = `//*[text()='${targetView}']`;
+      const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+      
+      if (!result.singleNodeValue) {
+        console.error(`❌ Button for "${targetView}" not found`);
+        return createBookmarkletError(`Button for "${targetView}" not found`, 'switchToView');
+      }
+      
+      const element = result.singleNodeValue;
+      const clickableElement = this._findClickableParent(element);
+      
+      console.log(`🖱️ Clicking element:`, clickableElement);
+      
+      try {
+        clickableElement.click();
+        console.log(`✅ Successfully clicked "${targetView}" button`);
+        return createBookmarkletSuccess(true, `Successfully clicked "${targetView}" button`, 'switchToView');
+      } catch (error) {
+        console.error('❌ Click failed:', error);
+        return createBookmarkletError(`Click failed: ${error.message}`, 'switchToView');
+      }
     }
 
-    console.log(`🔄 Current view is "${currentView}", switching to Maand...`);
+    ensureMaandView() {
+      console.log('🎯 Ensuring Maand view is active...');
+      
+      const detectionResult = this.detectActiveView();
+      
+      if (!detectionResult.success) {
+        console.warn('⚠️ Could not detect current view - proceeding anyway');
+        return createBookmarkletError('Could not detect current view', 'ensureMaandView');
+      }
 
-    const switched = switchToView('Maand');
+      const currentView = detectionResult.data;
 
-    if (switched) {
-      // Wait and verify
+      if (currentView === VIEW_DETECTION_CONFIG.TARGET_VIEW) {
+        console.log('✅ Already in Maand view');
+        return createBookmarkletSuccess({
+          currentView: VIEW_DETECTION_CONFIG.TARGET_VIEW,
+          switched: false,
+          message: 'Already in Maand view'
+        }, 'Already in Maand view', 'ensureMaandView');
+      }
+
+      console.log(`🔄 Current view is "${currentView}", switching to Maand...`);
+      const switchResult = this.switchToView(VIEW_DETECTION_CONFIG.TARGET_VIEW);
+
+      if (!switchResult.success) {
+        return createBookmarkletError(
+          `Failed to switch from ${currentView} to Maand: ${switchResult.message}`,
+          'ensureMaandView'
+        );
+      }
+
+      // Schedule verification
       setTimeout(() => {
-        const newView = detectActiveView();
-        console.log('🔍 Verification - new active view:', newView);
-        
-        if (newView === 'Maand') {
+        const newDetectionResult = this.detectActiveView();
+        if (newDetectionResult.success && newDetectionResult.data === VIEW_DETECTION_CONFIG.TARGET_VIEW) {
           console.log('✅ Switch to Maand view confirmed');
           showBookmarkletFeedback(`✅ Switched to Maand view from ${currentView}`, '#4CAF50');
         } else {
           console.warn('⚠️ Switch may not have completed');
           showBookmarkletFeedback(`🔄 Attempted to switch to Maand view from ${currentView}`, '#FF9800');
         }
-      }, 800);
-      
-      return {
-        success: true,
-        message: `Switched from ${currentView} to Maand`,
+      }, VIEW_DETECTION_CONFIG.SWITCH_VERIFICATION_DELAY);
+
+      return createBookmarkletSuccess({
+        currentView: currentView,
         switched: true,
-        previousView: currentView
-      };
-    } else {
-      return {
-        success: false,
-        message: `Failed to switch from ${currentView} to Maand`
-      };
+        previousView: currentView,
+        message: `Switched from ${currentView} to Maand`
+      }, `Switched from ${currentView} to Maand`, 'ensureMaandView');
+    }
+
+    // Private helper methods
+    _checkElementForActiveState(element, viewName) {
+      let current = element;
+      
+      for (let i = 0; i < VIEW_DETECTION_CONFIG.DOM_TRAVERSAL_LEVELS && current; i++) {
+        const styles = window.getComputedStyle(current);
+        
+        // Look for any non-transparent, non-white background
+        const bg = styles.backgroundColor;
+        const bgImage = styles.backgroundImage;
+        
+        if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'rgb(255, 255, 255)' && bg !== 'transparent') {
+          console.log(`✅ Active view detected: "${viewName}" (background: ${bg})`);
+          return viewName;
+        }
+        
+        if (bgImage && bgImage !== 'none') {
+          console.log(`✅ Active view detected: "${viewName}" (background image: ${bgImage})`);
+          return viewName;
+        }
+        
+        // Check for pressed/selected attributes
+        if (current.getAttribute('aria-pressed') === 'true' ||
+            current.getAttribute('aria-selected') === 'true' ||
+            current.classList.contains('pressed') ||
+            current.classList.contains('selected') ||
+            current.classList.contains('active')) {
+          console.log(`✅ Active view detected: "${viewName}" (has active attribute/class)`);
+          return viewName;
+        }
+        
+        current = current.parentElement;
+      }
+      
+      return null;
+    }
+
+    _findClickableParent(element) {
+      let clickableElement = element;
+      
+      while (clickableElement && 
+             !['BUTTON', 'TD', 'A'].includes(clickableElement.tagName) && 
+             !clickableElement.onclick &&
+             clickableElement.style.cursor !== 'pointer') {
+        clickableElement = clickableElement.parentElement;
+        if (!clickableElement) break;
+      }
+      
+      return clickableElement || element;
     }
   }
+
+  // Create view detection instance
+  const viewDetector = new BookmarkletViewDetection();
 
   function showBookmarkletFeedback(message, color) {
     let notification = document.getElementById('bookmarklet-view-notification');
@@ -176,12 +218,12 @@
     notification.textContent = message;
     notification.style.display = 'block';
     
-    // Auto-hide after 3 seconds
+    // Auto-hide after configured duration
     setTimeout(() => {
       if (notification && notification.parentNode) {
         notification.style.display = 'none';
       }
-    }, 3000);
+    }, VIEW_DETECTION_CONFIG.NOTIFICATION_DISPLAY_DURATION);
   }
 
   // Embed overlay-core.js functionality
@@ -793,14 +835,18 @@
 
   // Check view and switch to Maand if needed before creating UI
   console.log('🎯 Checking view and switching to Maand if needed...');
-  const viewResult = detectAndSwitchToMaandView();
+  const viewResult = viewDetector.ensureMaandView();
   
-  if (viewResult.switched) {
-    console.log(`✅ View switched successfully: ${viewResult.message}`);
-  } else if (viewResult.success && !viewResult.switched) {
-    console.log('✅ Already in correct view');
+  if (viewResult.success) {
+    const viewData = viewResult.data;
+    if (viewData.switched) {
+      console.log(`✅ View switched successfully: ${viewData.message}`);
+    } else {
+      console.log('✅ Already in correct view');
+    }
   } else {
     console.warn('⚠️ View detection/switching failed, but continuing with initialization');
+    console.warn('View error:', viewResult.message);
   }
 
   // Initialize the bookmarklet UI

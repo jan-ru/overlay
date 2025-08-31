@@ -4,7 +4,7 @@
 ![Manifest V3](https://img.shields.io/badge/manifest-v3-green?logo=googlechrome)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-A Chrome extension for HvA lecturers to display academic calendar overlays on the rooster application. Features unified overlay system, centralized error handling, optimized logging, and dual deployment options for maximum compatibility.
+A Chrome extension for HvA lecturers to display academic calendar overlays on the rooster application. Features unified overlay system, automatic view detection and switching, centralized error handling, optimized logging, and dual deployment options for maximum compatibility.
 
 ## Architecture Overview
 
@@ -31,11 +31,14 @@ The extension detects calendar week numbers in the HvA rooster and creates color
 
 **Key Features:**
 - **Multiple deployment options** - Chrome extension or bookmarklet for managed environments
+- **Automatic view detection** - Detects current calendar view (Dag, Week, Maand, Lijst)
+- **Auto-switch to Maand view** - Automatically switches to "Maand" view for optimal overlay display
 - **Page validation** - Only activates on rooster.hva.nl/schedule pages
 - **Sprint and day-specific overlays** - Week ranges for sprints, specific days for tests/assessments
 - **Course selection** - Dropdown to choose between all configured courses
 - **Calendar-anchored positioning** - Overlays adapt to actual calendar layout
 - **Smart detection fallbacks** - No overlay if target periods not found
+- **User feedback notifications** - Visual feedback when view switching occurs
 
 ## Installation Options
 
@@ -73,13 +76,24 @@ ico/                          # Extension icons
 
 1. Navigate to https://rooster.hva.nl/schedule
 2. Click extension icon or bookmarklet
-3. Select course from dropdown (Operations, GRC, Toets, Assessment)
-4. Choose overlay type:
+3. **Automatic view switching** - Extension detects current view and switches to "Maand" view if needed
+4. **View switch notification** - Green notification appears when view is switched
+5. Select course from dropdown (Operations, GRC, Toets, Assessment)
+6. Choose overlay type:
    - **Blok**: Highlights entire blok period with gray overlay
    - **Sprint 1-3**: Color-coded overlays for configured sprint weeks
    - **Rooster Vrij**: Purple overlay for schedule-free period
    - **Toets/Assessment**: Day-specific overlays for test/assessment days
-5. Click same button again to remove overlay
+7. Click same button again to remove overlay
+
+### View Detection and Switching
+
+The extension automatically ensures it operates in the "Maand" (Month) view for optimal overlay display:
+- Detects current active view using visual background analysis
+- Automatically switches from Dag/Week/Lijst to Maand view when needed
+- Shows user notification when view switching occurs
+- Verifies successful view change before proceeding
+- Continues operation even if view detection fails
 
 ### Configuration
 
@@ -90,6 +104,8 @@ For troubleshooting issues, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 ## Technical Notes
 
 - **Unified overlay system** - Single parameterized function handles all overlay types
+- **Automatic view detection** - Uses visual background color analysis for reliable view identification
+- **Smart view switching** - XPath-based element detection with clickable parent discovery
 - **Centralized configuration** - Shared UI and overlay configs between extension and bookmarklet
 - **Production-optimized logging** - Automatic debug log removal in production builds
 - **Standardized error handling** - Consistent error patterns with contextual logging
@@ -98,4 +114,4 @@ For troubleshooting issues, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 ---
 
-*Extension Version: 2.2 | Unified Architecture | Updated: 2025-08-30*
+*Extension Version: 2.3 | View Detection & Auto-Switching | Updated: 2025-08-31*

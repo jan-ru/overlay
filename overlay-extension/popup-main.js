@@ -31,6 +31,178 @@ async function validateCurrentPage() {
   });
 }
 
+// View detection and switching functionality
+async function detectAndSwitchToMaandView() {
+  console.log('🎯 Detecting current view and switching to Maand if needed...');
+  
+  try {
+    // First, inject the detection function into the page
+    const detectionResult = await executeScriptInActiveTab(() => {
+      function detectActiveView() {
+        console.log('🎯 Detecting active view...');
+        
+        const viewNames = ['Dag', 'Week', 'Maand', 'Lijst'];
+        
+        for (const viewName of viewNames) {
+          const xpath = `//*[text()='${viewName}']`;
+          const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+          
+          if (result.singleNodeValue) {
+            const element = result.singleNodeValue;
+            
+            // Check element and parents for pressed/active indicators
+            let current = element;
+            
+            for (let i = 0; i < 4 && current; i++) {
+              const styles = window.getComputedStyle(current);
+              
+              // Look for any non-transparent, non-white background
+              const bg = styles.backgroundColor;
+              const bgImage = styles.backgroundImage;
+              
+              if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'rgb(255, 255, 255)' && bg !== 'transparent') {
+                console.log(`✅ Active view detected: "${viewName}" (background: ${bg})`);
+                return viewName;
+              }
+              
+              if (bgImage && bgImage !== 'none') {
+                console.log(`✅ Active view detected: "${viewName}" (background image: ${bgImage})`);
+                return viewName;
+              }
+              
+              // Check for pressed/selected attributes
+              if (current.getAttribute('aria-pressed') === 'true' ||
+                  current.getAttribute('aria-selected') === 'true' ||
+                  current.classList.contains('pressed') ||
+                  current.classList.contains('selected') ||
+                  current.classList.contains('active')) {
+                console.log(`✅ Active view detected: "${viewName}" (has active attribute/class)`);
+                return viewName;
+              }
+              
+              current = current.parentElement;
+            }
+          }
+        }
+        
+        console.log('❌ No active view detected');
+        return null;
+      }
+
+      return detectActiveView();
+    });
+
+    const currentView = detectionResult[0]?.result;
+    console.log('🔍 Current view detected:', currentView);
+
+    if (!currentView) {
+      console.warn('⚠️ Could not detect current view - proceeding anyway');
+      return { success: false, message: 'Could not detect current view' };
+    }
+
+    if (currentView === 'Maand') {
+      console.log('✅ Already in Maand view');
+      return { success: true, message: 'Already in Maand view', switched: false };
+    }
+
+    console.log(`🔄 Current view is "${currentView}", switching to Maand...`);
+
+    // Switch to Maand view
+    const switchResult = await executeScriptInActiveTab(() => {
+      function switchToView(targetView) {
+        console.log(`🔄 Switching to "${targetView}" view...`);
+        
+        const xpath = `//*[text()='${targetView}']`;
+        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        
+        if (!result.singleNodeValue) {
+          console.error(`❌ Button for "${targetView}" not found`);
+          return false;
+        }
+        
+        const element = result.singleNodeValue;
+        
+        // Find the clickable parent
+        let clickableElement = element;
+        
+        while (clickableElement && 
+               !['BUTTON', 'TD', 'A'].includes(clickableElement.tagName) && 
+               !clickableElement.onclick &&
+               clickableElement.style.cursor !== 'pointer') {
+          clickableElement = clickableElement.parentElement;
+          if (!clickableElement) break;
+        }
+        
+        if (!clickableElement) clickableElement = element;
+        
+        console.log(`🖱️ Clicking element:`, clickableElement);
+        
+        try {
+          // Try regular click
+          clickableElement.click();
+          console.log(`✅ Successfully clicked "${targetView}" button`);
+          return true;
+        } catch (error) {
+          console.error('❌ Click failed:', error);
+          return false;
+        }
+      }
+
+      return switchToView('Maand');
+    });
+
+    const switched = switchResult[0]?.result;
+
+    if (switched) {
+      // Wait for view change and verify
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      const verifyResult = await executeScriptInActiveTab(() => {
+        const xpath = `//*[text()='Maand']`;
+        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        
+        if (result.singleNodeValue) {
+          const element = result.singleNodeValue;
+          let current = element;
+          
+          for (let i = 0; i < 4 && current; i++) {
+            const styles = window.getComputedStyle(current);
+            const bg = styles.backgroundColor;
+            
+            if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'rgb(255, 255, 255)' && bg !== 'transparent') {
+              console.log('✅ Switch to Maand view confirmed');
+              return true;
+            }
+            current = current.parentElement;
+          }
+        }
+        
+        console.warn('⚠️ Switch may not have completed');
+        return false;
+      });
+
+      const verified = verifyResult[0]?.result;
+      
+      return {
+        success: true,
+        message: `Switched from ${currentView} to Maand`,
+        switched: true,
+        previousView: currentView,
+        verified: verified
+      };
+    } else {
+      return {
+        success: false,
+        message: `Failed to switch from ${currentView} to Maand`
+      };
+    }
+
+  } catch (error) {
+    console.error('❌ Error during view detection/switching:', error);
+    return { success: false, message: 'Error during view detection/switching', error: error.message };
+  }
+}
+
 // Show error message and hide main content
 function showPageError() {
   const errorContainer = document.getElementById('error-container');
@@ -61,6 +233,51 @@ function showMainContent() {
   }
   
   console.log('✅ Extension activated - Valid page');
+}
+
+// Show user feedback when view is switched
+function showViewSwitchFeedback(viewResult) {
+  try {
+    // Create or update a temporary notification element
+    let notification = document.getElementById('view-switch-notification');
+    
+    if (!notification) {
+      notification = document.createElement('div');
+      notification.id = 'view-switch-notification';
+      notification.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: #4CAF50;
+        color: white;
+        padding: 10px 15px;
+        border-radius: 5px;
+        font-size: 12px;
+        z-index: 10000;
+        max-width: 250px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      `;
+      document.body.appendChild(notification);
+    }
+    
+    const message = viewResult.verified 
+      ? `✅ Switched to Maand view from ${viewResult.previousView}`
+      : `🔄 Attempted to switch to Maand view from ${viewResult.previousView}`;
+    
+    notification.textContent = message;
+    notification.style.display = 'block';
+    
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+      if (notification && notification.parentNode) {
+        notification.style.display = 'none';
+      }
+    }, 3000);
+    
+    console.log('📢 View switch feedback shown:', message);
+  } catch (error) {
+    console.error('❌ Error showing view switch feedback:', error);
+  }
 }
 
 // Utility functions
@@ -326,6 +543,20 @@ async function initializeExtension() {
     
     // Page is valid, show main content and continue initialization
     showMainContent();
+    
+    // Check current view and switch to Maand if needed
+    console.log('🎯 Checking view and switching to Maand if needed...');
+    const viewResult = await detectAndSwitchToMaandView();
+    
+    if (viewResult.switched) {
+      console.log(`✅ View switched successfully: ${viewResult.message}`);
+      // Show user feedback about view switching
+      showViewSwitchFeedback(viewResult);
+    } else if (viewResult.success && !viewResult.switched) {
+      console.log('✅ Already in correct view');
+    } else {
+      console.warn('⚠️ View detection/switching failed, but continuing with initialization');
+    }
     
     // Load settings first
     logger.debug('📋 Loading settings...');

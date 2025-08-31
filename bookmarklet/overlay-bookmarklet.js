@@ -10,6 +10,180 @@
   }
   window.overlayBookmarkletLoaded = true;
 
+  // View detection and switching functionality
+  function detectActiveView() {
+    console.log('🎯 Detecting active view...');
+    
+    const viewNames = ['Dag', 'Week', 'Maand', 'Lijst'];
+    
+    for (const viewName of viewNames) {
+      const xpath = `//*[text()='${viewName}']`;
+      const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+      
+      if (result.singleNodeValue) {
+        const element = result.singleNodeValue;
+        
+        // Check element and parents for pressed/active indicators
+        let current = element;
+        
+        for (let i = 0; i < 4 && current; i++) {
+          const styles = window.getComputedStyle(current);
+          
+          // Look for any non-transparent, non-white background
+          const bg = styles.backgroundColor;
+          const bgImage = styles.backgroundImage;
+          
+          if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'rgb(255, 255, 255)' && bg !== 'transparent') {
+            console.log(`✅ Active view detected: "${viewName}" (background: ${bg})`);
+            return viewName;
+          }
+          
+          if (bgImage && bgImage !== 'none') {
+            console.log(`✅ Active view detected: "${viewName}" (background image: ${bgImage})`);
+            return viewName;
+          }
+          
+          // Check for pressed/selected attributes
+          if (current.getAttribute('aria-pressed') === 'true' ||
+              current.getAttribute('aria-selected') === 'true' ||
+              current.classList.contains('pressed') ||
+              current.classList.contains('selected') ||
+              current.classList.contains('active')) {
+            console.log(`✅ Active view detected: "${viewName}" (has active attribute/class)`);
+            return viewName;
+          }
+          
+          current = current.parentElement;
+        }
+      }
+    }
+    
+    console.log('❌ No active view detected');
+    return null;
+  }
+
+  function switchToView(targetView) {
+    console.log(`🔄 Switching to "${targetView}" view...`);
+    
+    const xpath = `//*[text()='${targetView}']`;
+    const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+    
+    if (!result.singleNodeValue) {
+      console.error(`❌ Button for "${targetView}" not found`);
+      return false;
+    }
+    
+    const element = result.singleNodeValue;
+    
+    // Find the clickable parent
+    let clickableElement = element;
+    
+    while (clickableElement && 
+           !['BUTTON', 'TD', 'A'].includes(clickableElement.tagName) && 
+           !clickableElement.onclick &&
+           clickableElement.style.cursor !== 'pointer') {
+      clickableElement = clickableElement.parentElement;
+      if (!clickableElement) break;
+    }
+    
+    if (!clickableElement) clickableElement = element;
+    
+    console.log(`🖱️ Clicking element:`, clickableElement);
+    
+    try {
+      // Try regular click
+      clickableElement.click();
+      console.log(`✅ Successfully clicked "${targetView}" button`);
+      return true;
+    } catch (error) {
+      console.error('❌ Click failed:', error);
+      return false;
+    }
+  }
+
+  function detectAndSwitchToMaandView() {
+    console.log('🎯 Detecting current view and switching to Maand if needed...');
+    
+    const currentView = detectActiveView();
+    console.log('🔍 Current view detected:', currentView);
+
+    if (!currentView) {
+      console.warn('⚠️ Could not detect current view - proceeding anyway');
+      return { success: false, message: 'Could not detect current view' };
+    }
+
+    if (currentView === 'Maand') {
+      console.log('✅ Already in Maand view');
+      return { success: true, message: 'Already in Maand view', switched: false };
+    }
+
+    console.log(`🔄 Current view is "${currentView}", switching to Maand...`);
+
+    const switched = switchToView('Maand');
+
+    if (switched) {
+      // Wait and verify
+      setTimeout(() => {
+        const newView = detectActiveView();
+        console.log('🔍 Verification - new active view:', newView);
+        
+        if (newView === 'Maand') {
+          console.log('✅ Switch to Maand view confirmed');
+          showBookmarkletFeedback(`✅ Switched to Maand view from ${currentView}`, '#4CAF50');
+        } else {
+          console.warn('⚠️ Switch may not have completed');
+          showBookmarkletFeedback(`🔄 Attempted to switch to Maand view from ${currentView}`, '#FF9800');
+        }
+      }, 800);
+      
+      return {
+        success: true,
+        message: `Switched from ${currentView} to Maand`,
+        switched: true,
+        previousView: currentView
+      };
+    } else {
+      return {
+        success: false,
+        message: `Failed to switch from ${currentView} to Maand`
+      };
+    }
+  }
+
+  function showBookmarkletFeedback(message, color) {
+    let notification = document.getElementById('bookmarklet-view-notification');
+    
+    if (!notification) {
+      notification = document.createElement('div');
+      notification.id = 'bookmarklet-view-notification';
+      notification.style.cssText = `
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        background: ${color};
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 11px;
+        z-index: 2000001;
+        max-width: 200px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      `;
+      document.body.appendChild(notification);
+    }
+    
+    notification.style.background = color;
+    notification.textContent = message;
+    notification.style.display = 'block';
+    
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+      if (notification && notification.parentNode) {
+        notification.style.display = 'none';
+      }
+    }, 3000);
+  }
+
   // Embed overlay-core.js functionality
   window.OVERLAY_CORE_CONFIG = window.OVERLAY_CORE_CONFIG || {
     OVERLAY_STYLES: {
@@ -615,6 +789,18 @@
       ui.remove();
       window.overlayBookmarkletLoaded = false;
     });
+  }
+
+  // Check view and switch to Maand if needed before creating UI
+  console.log('🎯 Checking view and switching to Maand if needed...');
+  const viewResult = detectAndSwitchToMaandView();
+  
+  if (viewResult.switched) {
+    console.log(`✅ View switched successfully: ${viewResult.message}`);
+  } else if (viewResult.success && !viewResult.switched) {
+    console.log('✅ Already in correct view');
+  } else {
+    console.warn('⚠️ View detection/switching failed, but continuing with initialization');
   }
 
   // Initialize the bookmarklet UI

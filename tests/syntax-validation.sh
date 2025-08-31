@@ -44,16 +44,23 @@ cd "$(dirname "$0")/.."
 echo "📂 Testing Extension Files:"
 echo "----------------------------"
 
-# Test extension JavaScript files
+# Test core utility files
+test_js_syntax "view-detection-core.js" "view-detection-core.js"
+test_js_syntax "error-handling-core.js" "error-handling-core.js"
+
+# Test extension JavaScript files (current architecture)
 test_js_syntax "overlay-extension/overlay-core.js" "overlay-core.js"
 test_js_syntax "overlay-extension/calendar-overlays.js" "calendar-overlays.js" 
-test_js_syntax "overlay-extension/popup-main.js" "popup-main.js"
-test_js_syntax "overlay-extension/config.js" "config.js"
+test_js_syntax "overlay-extension/extension-orchestrator.js" "extension-orchestrator.js"
+test_js_syntax "overlay-extension/page-validator.js" "page-validator.js"
+test_js_syntax "overlay-extension/view-manager.js" "view-manager.js"
+test_js_syntax "overlay-extension/ui-manager.js" "ui-manager.js"
 test_js_syntax "overlay-extension/settings-loader.js" "settings-loader.js"
-test_js_syntax "overlay-extension/calendar-utils.js" "calendar-utils.js"
-test_js_syntax "overlay-extension/text-overlays.js" "text-overlays.js"
-test_js_syntax "overlay-extension/telemetry-loader.js" "telemetry-loader.js"
-test_js_syntax "overlay-extension/test-logging.js" "test-logging.js"
+test_js_syntax "overlay-extension/logger.js" "logger.js"
+test_js_syntax "overlay-extension/error-handler.js" "error-handler.js"
+
+# Test shared files
+test_js_syntax "shared-ui.js" "shared-ui.js"
 
 echo ""
 echo "📦 Testing Bookmarklet Files:"

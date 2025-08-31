@@ -11,8 +11,13 @@ This directory contains automated tests for the Calendar Overlay project, create
 - **Files Tested**:
   - `overlay-core.js` - Shared core library
   - `calendar-overlays.js` - Extension overlay functions
-  - `popup-main.js` - Extension popup logic
+  - `extension-orchestrator.js` - Main coordination logic
+  - `page-validator.js` - URL validation
+  - `view-manager.js` - View detection and switching
+  - `ui-manager.js` - UI initialization and event handling
   - `overlay-bookmarklet.js` - Bookmarklet implementation
+  - `view-detection-core.js` - Shared view detection utility
+  - `error-handling-core.js` - Standardized error handling
   - All other JavaScript files
 
 ### 📦 Extension Packaging (`extension-packaging.sh`)

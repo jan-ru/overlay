@@ -16,9 +16,12 @@ The extension uses Chrome's Manifest V3 architecture with a streamlined, unified
 - **popup.html**: UI with course selector and overlay buttons (Blok, Sprints 1-3, Rooster Vrij, Toets, Assessment)
 - **settings.json**: Academic hierarchy with both sprint-based and day-specific courses
 - **bookmarklet/**: Standalone bookmarklet version for managed PC environments
-- **Streamlined JavaScript Architecture**:
+- **Modular JavaScript Architecture**:
   - **overlay-core.js**: Unified overlay creation library (shared with bookmarklet)
-  - **popup-main.js**: Main orchestration, page validation, and event handling
+  - **extension-orchestrator.js**: Main coordination with step-by-step initialization
+  - **page-validator.js**: URL validation and page state management
+  - **view-manager.js**: View detection, switching, and user feedback
+  - **ui-manager.js**: UI initialization, course selection, and button setup
   - **settings-loader.js**: Hierarchical settings with consolidated validation
   - **calendar-overlays.js**: Unified overlay functions for all overlay types
   - **shared-ui.js**: Centralized UI generation for both extension and bookmarklet
@@ -60,7 +63,10 @@ overlay-extension/
 ├── popup.html                # UI with course selector and overlay buttons
 ├── settings.json             # Academic hierarchy with sprint and day-specific courses
 ├── overlay-core.js           # Unified overlay library (shared with bookmarklet)
-├── popup-main.js             # Main orchestration, page validation, event handling
+├── extension-orchestrator.js  # Main coordination with step-by-step initialization
+├── page-validator.js         # URL validation and page state management
+├── view-manager.js           # View detection, switching, and user feedback
+├── ui-manager.js             # UI initialization, course selection, and button setup
 ├── settings-loader.js        # Hierarchical settings with consolidated validation
 ├── calendar-overlays.js      # Unified overlay functions for all overlay types
 ├── logger.js                 # Centralized logging with production optimization

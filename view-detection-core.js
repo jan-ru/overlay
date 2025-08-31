@@ -25,38 +25,47 @@
     constructor() {
       this.config = VIEW_DETECTION_CONFIG;
       this.errors = VIEW_DETECTION_ERRORS;
+      this.fallbackStrategies = [
+        this._detectByVisualAnalysis.bind(this),
+        this._detectByDOMPosition.bind(this),
+        this._detectByClassNames.bind(this),
+        this._detectByTextContent.bind(this)
+      ];
     }
 
     /**
-     * Detects the currently active view using visual background analysis
+     * Detects the currently active view using multiple fallback strategies
      * @returns {Object} Result object with success status and detected view
      */
     detectActiveView() {
-      console.log('🎯 Detecting active view...');
+      console.log('🎯 Detecting active view with fallback strategies...');
       
-      for (const viewName of this.config.VIEW_NAMES) {
-        const xpath = `//*[text()='${viewName}']`;
-        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+      // Try each fallback strategy in order
+      for (let i = 0; i < this.fallbackStrategies.length; i++) {
+        const strategy = this.fallbackStrategies[i];
+        const strategyName = strategy.name.replace('bound ', '');
         
-        if (result.singleNodeValue) {
-          const element = result.singleNodeValue;
-          const detectedView = this._checkElementForActiveState(element, viewName);
-          
-          if (detectedView) {
-            return {
-              success: true,
-              view: detectedView,
-              error: null
-            };
+        console.log(`🔍 Strategy ${i + 1}: ${strategyName}`);
+        
+        try {
+          const result = strategy();
+          if (result.success) {
+            console.log(`✅ Strategy ${i + 1} succeeded: ${result.view}`);
+            return result;
+          } else {
+            console.log(`⚠️ Strategy ${i + 1} failed: ${result.error || 'Unknown error'}`);
           }
+        } catch (error) {
+          console.log(`❌ Strategy ${i + 1} threw error: ${error.message}`);
         }
       }
       
-      console.log('❌ No active view detected');
+      console.log('❌ All detection strategies failed');
       return {
         success: false,
         view: null,
-        error: this.errors.NO_VIEW_DETECTED
+        error: this.errors.NO_VIEW_DETECTED,
+        strategiesAttempted: this.fallbackStrategies.length
       };
     }
 
@@ -276,6 +285,201 @@
       }
       
       return clickableElement || element;
+    }
+
+    // Fallback detection strategies
+
+    /**
+     * Strategy 1: Visual analysis (original working method)
+     * @private
+     */
+    _detectByVisualAnalysis() {
+      for (const viewName of this.config.VIEW_NAMES) {
+        const xpath = `//*[text()='${viewName}']`;
+        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        
+        if (result.singleNodeValue) {
+          const element = result.singleNodeValue;
+          const detectedView = this._checkElementForActiveState(element, viewName);
+          
+          if (detectedView) {
+            return {
+              success: true,
+              view: detectedView,
+              strategy: 'visual-analysis'
+            };
+          }
+        }
+      }
+      
+      return {
+        success: false,
+        error: 'No visual indicators found',
+        strategy: 'visual-analysis'
+      };
+    }
+
+    /**
+     * Strategy 2: DOM position analysis
+     * @private  
+     */
+    _detectByDOMPosition() {
+      const buttons = [];
+      
+      for (const viewName of this.config.VIEW_NAMES) {
+        const xpath = `//*[text()='${viewName}']`;
+        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        
+        if (result.singleNodeValue) {
+          const element = result.singleNodeValue;
+          const container = element.closest('td, button, div');
+          
+          if (container) {
+            const rect = container.getBoundingClientRect();
+            buttons.push({
+              name: viewName,
+              element: container,
+              rect: rect,
+              zIndex: window.getComputedStyle(container).zIndex
+            });
+          }
+        }
+      }
+      
+      if (buttons.length === 0) {
+        return { success: false, error: 'No buttons found for position analysis', strategy: 'dom-position' };
+      }
+      
+      // Look for button with highest z-index or different position
+      const sortedByZIndex = buttons.sort((a, b) => parseInt(b.zIndex || 0) - parseInt(a.zIndex || 0));
+      const highestZIndex = sortedByZIndex[0];
+      
+      if (parseInt(highestZIndex.zIndex || 0) > 0) {
+        return {
+          success: true,
+          view: highestZIndex.name,
+          strategy: 'dom-position'
+        };
+      }
+      
+      return { success: false, error: 'No position indicators found', strategy: 'dom-position' };
+    }
+
+    /**
+     * Strategy 3: CSS class name analysis
+     * @private
+     */
+    _detectByClassNames() {
+      const activeClassPatterns = [
+        /active/i, /selected/i, /current/i, /pressed/i, /focused/i, /highlight/i
+      ];
+      
+      for (const viewName of this.config.VIEW_NAMES) {
+        const xpath = `//*[text()='${viewName}']`;
+        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        
+        if (result.singleNodeValue) {
+          const element = result.singleNodeValue;
+          let current = element;
+          
+          // Check element and parents for active class patterns
+          for (let i = 0; i < this.config.DOM_TRAVERSAL_LEVELS && current; i++) {
+            const className = current.className || '';
+            const classList = className.split(' ');
+            
+            const hasActiveClass = classList.some(cls => 
+              activeClassPatterns.some(pattern => pattern.test(cls))
+            );
+            
+            if (hasActiveClass) {
+              return {
+                success: true,
+                view: viewName,
+                strategy: 'class-names',
+                detectedClass: className
+              };
+            }
+            
+            current = current.parentElement;
+          }
+        }
+      }
+      
+      return { success: false, error: 'No active class patterns found', strategy: 'class-names' };
+    }
+
+    /**
+     * Strategy 4: Text content and font analysis
+     * @private
+     */
+    _detectByTextContent() {
+      const buttons = [];
+      
+      for (const viewName of this.config.VIEW_NAMES) {
+        const xpath = `//*[text()='${viewName}']`;
+        const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        
+        if (result.singleNodeValue) {
+          const element = result.singleNodeValue;
+          const styles = window.getComputedStyle(element);
+          
+          buttons.push({
+            name: viewName,
+            element: element,
+            fontWeight: styles.fontWeight,
+            color: styles.color,
+            textDecoration: styles.textDecoration,
+            fontSize: styles.fontSize
+          });
+        }
+      }
+      
+      if (buttons.length === 0) {
+        return { success: false, error: 'No buttons found for text analysis', strategy: 'text-content' };
+      }
+      
+      // Look for button with bold font or different color
+      const boldButton = buttons.find(btn => 
+        btn.fontWeight === 'bold' || 
+        parseInt(btn.fontWeight) >= 600 ||
+        btn.textDecoration.includes('underline')
+      );
+      
+      if (boldButton) {
+        return {
+          success: true,
+          view: boldButton.name,
+          strategy: 'text-content',
+          indicator: 'bold-font'
+        };
+      }
+      
+      // Look for unique color
+      const colors = buttons.map(btn => btn.color);
+      const uniqueColors = colors.filter((color, index) => colors.indexOf(color) === index);
+      
+      if (uniqueColors.length > 1) {
+        // Find the less common color (might be active state)
+        const colorCounts = {};
+        colors.forEach(color => {
+          colorCounts[color] = (colorCounts[color] || 0) + 1;
+        });
+        
+        const sortedColors = Object.entries(colorCounts).sort((a, b) => a[1] - b[1]);
+        const rareColor = sortedColors[0][0];
+        const rareColorButton = buttons.find(btn => btn.color === rareColor);
+        
+        if (rareColorButton) {
+          return {
+            success: true,
+            view: rareColorButton.name,
+            strategy: 'text-content',
+            indicator: 'unique-color'
+          };
+        }
+      }
+      
+      return { success: false, error: 'No text styling indicators found', strategy: 'text-content' };
     }
   }
 

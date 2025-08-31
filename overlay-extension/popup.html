@@ -55,6 +55,31 @@
   <script src="../shared-ui.js"></script>
   <script src="settings-loader.js"></script>
   <script src="calendar-overlays.js"></script>
-  <script src="popup-main.js"></script>
+  <!-- New modular architecture -->
+  <script src="page-validator.js"></script>
+  <script src="view-manager.js"></script>
+  <script src="ui-manager.js"></script>
+  <script src="extension-orchestrator.js"></script>
+  <script>
+    // Initialize extension using new orchestrator
+    const extensionOrchestrator = new ExtensionOrchestrator();
+    
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('📄 DOM Content Loaded - initializing with orchestrator...');
+      extensionOrchestrator.initialize();
+    });
+    
+    // Fallback initialization
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => extensionOrchestrator.initialize());
+    } else {
+      console.log('📄 DOM already loaded - initializing immediately with orchestrator...');
+      extensionOrchestrator.initialize();
+    }
+    
+    // Make orchestrator available globally for debugging
+    window.extensionOrchestrator = extensionOrchestrator;
+  </script>
 </body>
 </html>

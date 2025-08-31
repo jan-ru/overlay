@@ -1,6 +1,5 @@
 Write test specs
-Overlay for blok1, blok2, blok3, blok4
-Add deadlines, exams, assessments to settings file
+Add deliverables (separate file?)
 Add multiple courses to settings file (GRC)
 Check if settings can be read from Brigthspace
 If day is not found it shall display no overlay at all

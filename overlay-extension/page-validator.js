@@ -4,6 +4,29 @@
 class PageValidator {
   constructor() {
     this.validUrlPattern = 'https://rooster.hva.nl/schedule';
+    
+    // Initialize enhanced logger if available
+    this.logger = typeof enhancedLogger !== 'undefined' ? enhancedLogger : console;
+    
+    // Ensure errorHandler is available
+    this.errorHandler = typeof errorHandler !== 'undefined' ? errorHandler : this.createFallbackErrorHandler();
+  }
+  
+  /**
+   * Creates a fallback error handler if the main one isn't available
+   */
+  createFallbackErrorHandler() {
+    return {
+      createError: (code, message, context, originalError) => ({
+        success: false,
+        error: { code, message, context, originalError, timestamp: new Date().toISOString() }
+      }),
+      createSuccess: (data, message, context) => ({
+        success: true,
+        data, message, context, timestamp: new Date().toISOString()
+      }),
+      formatForUser: (result) => result.success ? result.message : result.error.message
+    };
   }
 
   /**
@@ -14,7 +37,7 @@ class PageValidator {
     return new Promise((resolve) => {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (chrome.runtime.lastError) {
-          const error = errorHandler.createError(
+          const error = this.errorHandler.createError(
             ERROR_CODES.CHROME_API_ERROR,
             chrome.runtime.lastError.message,
             'validateCurrentPage'
@@ -24,7 +47,7 @@ class PageValidator {
         }
         
         if (!tabs || !tabs[0]) {
-          const error = errorHandler.createError(
+          const error = this.errorHandler.createError(
             ERROR_CODES.TAB_ACCESS_DENIED,
             'No active tab found',
             'validateCurrentPage'
@@ -34,22 +57,37 @@ class PageValidator {
         }
 
         const currentUrl = tabs[0].url;
-        console.log('🔍 Extension checking URL:', currentUrl);
-        console.log('🔍 Expected URL pattern:', this.validUrlPattern);
-        console.log('🔍 URL starts with pattern:', currentUrl ? currentUrl.startsWith(this.validUrlPattern) : 'null');
+        
+        this.logger.debug && this.logger.debug(
+          this.logger.categories?.VALIDATION || 'VALIDATION',
+          `Checking URL: ${currentUrl}`,
+          'page-validation'
+        );
         
         const isValidPage = currentUrl && currentUrl.startsWith(this.validUrlPattern);
         
-        console.log('🔍 Page validation result:', isValidPage ? '✅ Valid' : '❌ Invalid');
+        if (isValidPage) {
+          this.logger.info && this.logger.info(
+            this.logger.categories?.VALIDATION || 'VALIDATION',
+            'Page validation passed',
+            'page-validation'
+          );
+        } else {
+          this.logger.warn && this.logger.warn(
+            this.logger.categories?.VALIDATION || 'VALIDATION',
+            `Invalid page - expected pattern: ${this.validUrlPattern}`,
+            'page-validation'
+          );
+        }
         
         if (isValidPage) {
-          resolve(errorHandler.createSuccess(
+          resolve(this.errorHandler.createSuccess(
             { url: currentUrl, valid: true }, 
             'Page validation passed', 
             'validateCurrentPage'
           ));
         } else {
-          resolve(errorHandler.createError(
+          resolve(this.errorHandler.createError(
             ERROR_CODES.INVALID_URL,
             `Extension only works on ${this.validUrlPattern} pages`,
             'validateCurrentPage'
@@ -74,7 +112,11 @@ class PageValidator {
       mainContent.style.display = 'none';
     }
     
-    console.log('🚫 Extension deactivated - Invalid page');
+    this.logger.warn && this.logger.warn(
+      this.logger.categories?.UI || 'UI',
+      'Extension deactivated - Invalid page',
+      'page-error-display'
+    );
   }
 
   /**
@@ -92,7 +134,11 @@ class PageValidator {
       mainContent.style.display = 'block';
     }
     
-    console.log('✅ Extension activated - Valid page');
+    this.logger.info && this.logger.info(
+      this.logger.categories?.UI || 'UI',
+      'Extension activated - Valid page',
+      'page-content-display'
+    );
   }
 }
 

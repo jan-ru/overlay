@@ -258,6 +258,16 @@
 
   // Convenience instance for immediate use
   global.errorHandler = new ErrorHandlingCore();
+  
+  // Also make it available in global scope for Chrome extension context
+  if (typeof window !== 'undefined') {
+    window.errorHandler = global.errorHandler;
+  }
+  
+  // For Node.js contexts
+  if (typeof globalThis !== 'undefined') {
+    globalThis.errorHandler = global.errorHandler;
+  }
 
   console.log('✅ Error Handling Core loaded!');
 

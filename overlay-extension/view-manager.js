@@ -4,6 +4,29 @@
 class ViewManager {
   constructor() {
     this.scriptExecutor = null; // Will be injected
+    
+    // Initialize enhanced logger if available
+    this.logger = typeof enhancedLogger !== 'undefined' ? enhancedLogger : console;
+    
+    // Ensure errorHandler is available
+    this.errorHandler = typeof errorHandler !== 'undefined' ? errorHandler : this.createFallbackErrorHandler();
+  }
+  
+  /**
+   * Creates a fallback error handler if the main one isn't available
+   */
+  createFallbackErrorHandler() {
+    return {
+      createError: (code, message, context, originalError) => ({
+        success: false,
+        error: { code, message, context, originalError, timestamp: new Date().toISOString() }
+      }),
+      createSuccess: (data, message, context) => ({
+        success: true,
+        data, message, context, timestamp: new Date().toISOString()
+      }),
+      formatForUser: (result) => result.success ? result.message : result.error.message
+    };
   }
 
   /**
@@ -19,10 +42,19 @@ class ViewManager {
    * @returns {Promise<Object>} Result with view detection and switching status
    */
   async detectAndSwitchToMaandView() {
-    console.log('🎯 Detecting current view and switching to Maand if needed...');
+    this.logger.info && this.logger.info(
+      this.logger.categories?.VIEW || 'VIEW',
+      'Starting view detection and Maand switching',
+      'view-detection-start'
+    );
     
     if (!this.scriptExecutor) {
-      return errorHandler.createError(
+      this.logger.error && this.logger.error(
+        this.logger.categories?.ERROR || 'ERROR',
+        'Script executor not configured',
+        'view-detection-error'
+      );
+      return this.errorHandler.createError(
         ERROR_CODES.SCRIPT_INJECTION_DENIED,
         'Script executor not configured',
         'detectAndSwitchToMaandView'
@@ -30,27 +62,132 @@ class ViewManager {
     }
     
     try {
-      // Inject view detection utility and perform async detection/switching
+      // Inject self-contained view detection and switching logic
       const result = await this.scriptExecutor(async () => {
-        // Ensure ViewDetectionCore is available in the page context
-        if (typeof ViewDetectionCore === 'undefined') {
-          console.error('❌ ViewDetectionCore not available in page context');
+        // Inline view detection logic (self-contained)
+        const viewNames = ['Dag', 'Week', 'Maand', 'Lijst'];
+        const targetView = 'Maand';
+        
+        // Simple view detection function
+        function detectActiveView() {
+          for (const viewName of viewNames) {
+            const xpath = `//*[text()='${viewName}']`;
+            const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+            
+            if (result.singleNodeValue) {
+              const element = result.singleNodeValue;
+              
+              // Check if this view button is visually active
+              let currentElement = element;
+              for (let i = 0; i < 4 && currentElement; i++) {
+                const styles = getComputedStyle(currentElement);
+                const bgColor = styles.backgroundColor;
+                
+                if (bgColor && 
+                    bgColor !== 'rgba(0, 0, 0, 0)' && 
+                    bgColor !== 'rgb(255, 255, 255)' && 
+                    bgColor !== 'transparent') {
+                  return viewName;
+                }
+                
+                if (styles.backgroundImage && styles.backgroundImage !== 'none') {
+                  return viewName;
+                }
+                
+                if (currentElement.getAttribute('aria-pressed') === 'true' || 
+                    currentElement.classList.contains('active')) {
+                  return viewName;
+                }
+                
+                currentElement = currentElement.parentElement;
+              }
+            }
+          }
+          return null;
+        }
+        
+        // Simple view switching function
+        function switchToView(targetViewName) {
+          const xpath = `//*[text()='${targetViewName}']`;
+          const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+          
+          if (!result.singleNodeValue) {
+            return { success: false, message: `Button for ${targetViewName} not found` };
+          }
+          
+          let clickableElement = result.singleNodeValue;
+          
+          // Find the actual clickable parent element
+          while (clickableElement && 
+                 !['BUTTON', 'TD', 'A'].includes(clickableElement.tagName) && 
+                 !clickableElement.onclick) {
+            clickableElement = clickableElement.parentElement;
+            if (!clickableElement) break;
+          }
+          
+          if (!clickableElement) {
+            clickableElement = result.singleNodeValue;
+          }
+          
+          try {
+            clickableElement.click();
+            return { success: true, message: `Clicked ${targetViewName}` };
+          } catch (error) {
+            return { success: false, message: `Click failed: ${error.message}` };
+          }
+        }
+        
+        // Main logic
+        const currentView = detectActiveView();
+        
+        if (!currentView) {
           return {
             success: false,
-            error: 'VIEW_DETECTION_CORE_MISSING',
-            message: 'ViewDetectionCore utility not loaded'
+            message: 'Could not detect current view',
+            error: 'NO_VIEW_DETECTED'
           };
         }
         
-        const detector = new ViewDetectionCore();
-        return await detector.ensureMaandViewAsync();
+        if (currentView === targetView) {
+          return {
+            success: true,
+            data: {
+              currentView: targetView,
+              switched: false,
+              message: 'Already in Maand view'
+            }
+          };
+        }
+        
+        // Switch to target view
+        const switchResult = switchToView(targetView);
+        
+        if (!switchResult.success) {
+          return {
+            success: false,
+            message: `Failed to switch to ${targetView}: ${switchResult.message}`,
+            error: 'SWITCH_FAILED'
+          };
+        }
+        
+        // Return success with switch information
+        return {
+          success: true,
+          data: {
+            currentView: currentView,
+            switched: true,
+            previousView: currentView,
+            message: `Switched from ${currentView} to ${targetView}`,
+            transitionConfirmed: false // Will be verified later if needed
+          }
+        };
       });
 
       // Extract result from Chrome extension API response
       const viewResult = result[0]?.result;
       
       if (!viewResult) {
-        return errorHandler.createError(
+        return this.errorHandler.createError(
           ERROR_CODES.SCRIPT_INJECTION_DENIED,
           'Failed to execute view detection script',
           'detectAndSwitchToMaandView'
@@ -59,7 +196,12 @@ class ViewManager {
 
       // Check if the result indicates an error
       if (!viewResult.success) {
-        return errorHandler.createError(
+        this.logger.warn && this.logger.warn(
+          this.logger.categories?.VIEW || 'VIEW',
+          `View detection failed: ${viewResult.message}`,
+          'view-detection-failed'
+        );
+        return this.errorHandler.createError(
           ERROR_CODES.VIEW_NOT_DETECTED,
           viewResult.message || 'View detection failed',
           'detectAndSwitchToMaandView',
@@ -67,10 +209,15 @@ class ViewManager {
         );
       }
 
-      return errorHandler.createSuccess(viewResult, 'View detection completed', 'detectAndSwitchToMaandView');
+      this.logger.info && this.logger.info(
+        this.logger.categories?.VIEW || 'VIEW',
+        'View detection completed successfully',
+        'view-detection-success'
+      );
+      return this.errorHandler.createSuccess(viewResult, 'View detection completed', 'detectAndSwitchToMaandView');
 
     } catch (error) {
-      return errorHandler.createError(
+      return this.errorHandler.createError(
         ERROR_CODES.SCRIPT_INJECTION_DENIED,
         `Error during view detection/switching: ${error.message}`,
         'detectAndSwitchToMaandView',
@@ -121,7 +268,11 @@ class ViewManager {
         }
       }, VIEW_DETECTION_CONFIG.NOTIFICATION_DISPLAY_DURATION);
       
-      console.log('📢 View switch feedback shown:', message);
+      this.logger.info && this.logger.info(
+        this.logger.categories?.UI || 'UI',
+        `View switch feedback shown: ${message}`,
+        'view-feedback-display'
+      );
     } catch (error) {
       console.error('❌ Error showing view switch feedback:', error);
     }
@@ -154,7 +305,7 @@ class ViewManager {
         document.body.appendChild(notification);
       }
       
-      const message = errorHandler.formatForUser(errorResult);
+      const message = this.errorHandler.formatForUser(errorResult);
       notification.textContent = message;
       notification.style.display = 'block';
       
@@ -165,7 +316,11 @@ class ViewManager {
         }
       }, 5000);
       
-      console.log('📢 Error feedback shown:', message);
+      this.logger.warn && this.logger.warn(
+        this.logger.categories?.UI || 'UI',
+        `Error feedback shown: ${message}`,
+        'error-feedback-display'
+      );
     } catch (error) {
       console.error('❌ Error showing error feedback:', error);
     }

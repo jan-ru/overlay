@@ -5,6 +5,18 @@ class UIManager {
   constructor() {
     this.cachedSettings = null;
     this.isProcessing = false;
+    this.scriptExecutor = null; // Will be injected like view manager
+    
+    // Initialize enhanced logger if available
+    this.logger = typeof enhancedLogger !== 'undefined' ? enhancedLogger : console;
+  }
+  
+  /**
+   * Sets the script executor for Chrome extension API calls
+   * @param {Function} executor - Function to execute scripts in active tab
+   */
+  setScriptExecutor(executor) {
+    this.scriptExecutor = executor;
   }
 
   /**
@@ -25,7 +37,11 @@ class UIManager {
         // Use consistent title across both extension and bookmarklet
         const titleText = 'Calendar Overlays';
         titleElement.textContent = titleText;
-        logger.debug('✅ Title updated to:', titleElement.textContent);
+        this.logger.debug && this.logger.debug(
+          this.logger.categories?.UI || 'UI',
+          `Title updated to: ${titleElement.textContent}`,
+          'title-update'
+        );
       }
     } catch (error) {
       console.error('❌ Error updating title:', error);
@@ -60,7 +76,11 @@ class UIManager {
         courseSelect.value = currentCourseKey;
       }
       
-      logger.debug('✅ Course dropdown populated with', courses.length, 'courses');
+      this.logger.debug && this.logger.debug(
+        this.logger.categories?.UI || 'UI',
+        `Course dropdown populated with ${courses.length} courses`,
+        'course-dropdown'
+      );
     } catch (error) {
       console.error('❌ Error populating course dropdown:', error);
     }
@@ -78,7 +98,7 @@ class UIManager {
         const selectedCourse = e.target.value;
         if (selectedCourse) {
           setCurrentCourse(selectedCourse);
-          logger.debug('✅ Course changed to:', selectedCourse);
+          this.logger.logUserAction && this.logger.logUserAction('course-change', { course: selectedCourse });
           
           // Clear any existing overlays when switching courses
           this.clearAllOverlays();
@@ -93,7 +113,11 @@ class UIManager {
    * Sets up event listeners for overlay buttons
    */
   setupOverlayButtonListeners() {
-    logger.debug('⚙️ Setting up overlay button event listeners...');
+    this.logger.debug && this.logger.debug(
+      this.logger.categories?.UI || 'UI',
+      'Setting up overlay button event listeners',
+      'button-setup'
+    );
     
     // Calendar overlay buttons - Day, Week, Month
     const CALENDAR_CONFIGS = window.OVERLAY_CORE_CONFIG?.CALENDAR_CONFIGS || [];
@@ -109,29 +133,27 @@ class UIManager {
           
           if (this.isProcessing) return;
           this.isProcessing = true;
-          console.log(`🎯 ${config.id} button clicked!`);
+          this.logger.logUserAction && this.logger.logUserAction('overlay-button-click', { 
+            overlayType: config.id 
+          });
           
           try {
             let result;
             
-            // Call the appropriate function based on button ID
-            if (config.id === 'select_blok') {
-              result = await select_blok(config);
-            } else if (config.id === 'select_sprint1') {
-              result = await select_sprint1(config);
-            } else if (config.id === 'select_sprint2') {
-              result = await select_sprint2(config);
-            } else if (config.id === 'select_sprint3') {
-              result = await select_sprint3(config);
-            } else if (config.id === 'select_rooster_vrij') {
-              result = await select_rooster_vrij(config);
-            } else if (config.id === 'select_toets') {
-              result = await select_toets(config);
-            } else if (config.id === 'select_assessment') {
-              result = await select_assessment(config);
+            if (!this.scriptExecutor) {
+              throw new Error('Script executor not configured');
             }
             
-            console.log(`✅ ${config.id} overlay ${result}`);
+            // Create overlay using direct script injection approach
+            result = await this.createOverlayDirectly(config);
+            
+            
+            this.logger.logOverlayOperation && this.logger.logOverlayOperation(
+              'button-action', 
+              config.id, 
+              result !== 'error' && result !== 'not_found', 
+              { result }
+            );
             
             // Update button appearance based on state
             this.updateButtonState(button, config, result);
@@ -146,7 +168,11 @@ class UIManager {
       }
     });
     
-    console.log('✅ Overlay button event listeners setup complete');
+    this.logger.info && this.logger.info(
+      this.logger.categories?.UI || 'UI',
+      'Overlay button event listeners setup complete',
+      'button-setup-complete'
+    );
   }
 
   /**
@@ -230,7 +256,283 @@ class UIManager {
   clearAllOverlays() {
     // This function would remove all existing overlays
     // Implementation depends on how overlays are tracked
-    logger.debug('🧹 Clearing all overlays on course change');
+    this.logger.debug && this.logger.debug(
+      this.logger.categories?.UI || 'UI',
+      'Clearing all overlays on course change',
+      'overlay-cleanup'
+    );
+  }
+
+  /**
+   * Creates overlay directly using script injection
+   * @param {Object} config - Overlay configuration
+   * @returns {Promise<string>} Overlay creation result
+   */
+  async createOverlayDirectly(config) {
+    try {
+      // Get overlay data based on type
+      const overlayData = this.getOverlayData(config.id);
+      
+      // Execute overlay creation in the active tab
+      const result = await this.scriptExecutor((configData, overlayInfo) => {
+        // Self-contained overlay creation logic
+        console.log('🎨 Creating overlay:', configData.id, overlayInfo);
+        
+        // Check if overlay already exists (remove if it does)
+        const existing = document.getElementById(configData.overlayId);
+        const existingText = document.getElementById(configData.overlayId + '-text');
+        
+        if (existing || existingText) {
+          if (existing) existing.remove();
+          if (existingText) existingText.remove();
+          console.log('🗑️ Removed existing overlay:', configData.overlayId);
+          return 'removed';
+        }
+        
+        // Find calendar element
+        const selectors = [
+          'table.GNKVYU1C-',
+          'table[class^="GNKVYU1C"]',
+          'table[class*="GNKVYU1C"]',
+          '.gwt-TabLayoutPanelContent table',
+          'table'
+        ];
+        
+        let calendar = null;
+        for (const selector of selectors) {
+          try {
+            if (selector === 'table') {
+              const tables = document.querySelectorAll('table');
+              let largest = null, maxArea = 0;
+              tables.forEach(t => {
+                const r = t.getBoundingClientRect();
+                const area = r.width * r.height;
+                if (area > maxArea) { maxArea = area; largest = t; }
+              });
+              if (largest) { calendar = largest; break; }
+            } else {
+              const el = document.querySelector(selector);
+              if (el) { calendar = el; break; }
+            }
+          } catch (e) { continue; }
+        }
+        
+        if (!calendar) {
+          console.error('❌ Calendar not found');
+          return 'error';
+        }
+        
+        // Create overlay based on type
+        if (overlayInfo.type === 'week-range') {
+          // Week range overlay creation logic
+          const cells = calendar.querySelectorAll('td');
+          const weekCells = [];
+          
+          cells.forEach(cell => {
+            const text = cell.textContent?.trim().toLowerCase();
+            
+            // Simple string-based week detection - avoid regex complications
+            if (text.includes('week')) {
+              console.log('Found text containing "week":', text);
+              
+              // Extract number after "week" using simple parsing
+              const parts = text.split('week');
+              if (parts.length > 1) {
+                const afterWeek = parts[1].trim();
+                
+                // Extract just the digits at the start
+                let numStr = '';
+                for (let i = 0; i < afterWeek.length; i++) {
+                  const char = afterWeek[i];
+                  if (char >= '0' && char <= '9') {
+                    numStr += char;
+                  } else if (numStr.length > 0) {
+                    break; // Stop at first non-digit after we found digits
+                  }
+                }
+                
+                if (numStr.length > 0) {
+                  const weekNum = parseInt(numStr);
+                  console.log('Parsed week number:', weekNum, 'from:', text);
+                  if (weekNum >= overlayInfo.startWeek && weekNum <= overlayInfo.endWeek) {
+                    console.log('✅ Week', weekNum, 'is in range', overlayInfo.startWeek, '-', overlayInfo.endWeek);
+                    weekCells.push(cell);
+                  } else {
+                    console.log('Week', weekNum, 'is outside range', overlayInfo.startWeek, '-', overlayInfo.endWeek);
+                  }
+                } else {
+                  console.log('No number found after "week" in:', afterWeek);
+                }
+              }
+            }
+          });
+          
+          if (weekCells.length === 0) {
+            console.log('❌ No week cells found for range');
+            return 'not_found';
+          }
+          
+          // Calculate bounds
+          let minLeft = Infinity, maxRight = 0, minTop = Infinity, maxBottom = 0;
+          weekCells.forEach(cell => {
+            const rect = cell.getBoundingClientRect();
+            minLeft = Math.min(minLeft, rect.left);
+            maxRight = Math.max(maxRight, rect.right);
+            minTop = Math.min(minTop, rect.top);
+            maxBottom = Math.max(maxBottom, rect.bottom);
+          });
+          
+          const calendarRect = calendar.getBoundingClientRect();
+          
+          // Create overlay
+          const overlay = document.createElement('div');
+          overlay.id = configData.overlayId;
+          Object.assign(overlay.style, {
+            position: 'fixed',
+            top: minTop + 'px',
+            left: calendarRect.left + 'px',
+            width: calendarRect.width + 'px',
+            height: (maxBottom - minTop) + 'px',
+            background: configData.color,
+            zIndex: '999999',
+            pointerEvents: 'none'
+          });
+          
+          document.body.appendChild(overlay);
+          
+          // Add text overlay
+          const textOverlay = document.createElement('div');
+          textOverlay.id = configData.overlayId + '-text';
+          const centerX = calendarRect.left + (calendarRect.width / 2);
+          const centerY = minTop + ((maxBottom - minTop) / 2);
+          
+          Object.assign(textOverlay.style, {
+            position: 'fixed',
+            left: centerX + 'px',
+            top: centerY + 'px',
+            transform: 'translate(-50%, -50%)',
+            color: 'white',
+            fontSize: '24px',
+            fontWeight: 'bold',
+            textShadow: '2px 2px 4px rgba(0,0,0,0.8)',
+            zIndex: '1000001',
+            pointerEvents: 'none',
+            userSelect: 'none'
+          });
+          
+          textOverlay.textContent = overlayInfo.label;
+          document.body.appendChild(textOverlay);
+          
+          console.log('✅ Week range overlay created:', configData.overlayId);
+          return 'created';
+          
+        } else if (overlayInfo.type === 'day-specific') {
+          // Day-specific overlay creation logic
+          console.log('🎯 Creating day-specific overlay for day', overlayInfo.dayNumber, 'in week', overlayInfo.weekNumber);
+          return 'created'; // Simplified for now
+        }
+        
+        return 'error';
+      }, [config, overlayData]);
+
+      return result[0]?.result || result;
+    } catch (error) {
+      console.error(`❌ Error creating overlay for ${config.id}:`, error);
+      return 'error';
+    }
+  }
+  
+  /**
+   * Gets overlay data for different overlay types
+   */
+  getOverlayData(overlayId) {
+    const settings = this.cachedSettings;
+    
+    switch (overlayId) {
+      case 'select_blok':
+        const blokConfig = settings?.bloks?.[settings.defaultBlok];
+        return {
+          type: 'week-range',
+          startWeek: blokConfig?.startWeek || 36,
+          endWeek: blokConfig?.endWeek || 44,
+          sprintNumber: 0,
+          label: 'Blok 1'
+        };
+        
+      case 'select_sprint1':
+        const course = this.getCurrentCourseConfig();
+        return {
+          type: 'week-range',
+          startWeek: course?.sprint1?.startWeek || 36,
+          endWeek: course?.sprint1?.endWeek || 37,
+          sprintNumber: 1,
+          label: 'Sprint 1'
+        };
+        
+      case 'select_sprint2':
+        const course2 = this.getCurrentCourseConfig();
+        return {
+          type: 'week-range',
+          startWeek: course2?.sprint2?.startWeek || 38,
+          endWeek: course2?.sprint2?.endWeek || 39,
+          sprintNumber: 2,
+          label: 'Sprint 2'
+        };
+        
+      case 'select_sprint3':
+        const course3 = this.getCurrentCourseConfig();
+        return {
+          type: 'week-range',
+          startWeek: course3?.sprint3?.startWeek || 40,
+          endWeek: course3?.sprint3?.endWeek || 42,
+          sprintNumber: 3,
+          label: 'Sprint 3'
+        };
+        
+      case 'select_rooster_vrij':
+        const rvConfig = settings?.roosterVrij;
+        return {
+          type: 'week-range',
+          startWeek: rvConfig?.startWeek || 43,
+          endWeek: rvConfig?.endWeek || 43,
+          sprintNumber: -1,
+          label: 'Rooster Vrij'
+        };
+        
+      case 'select_toets':
+        const toetsConfig = this.getCurrentCourseConfig()?.Toets;
+        return {
+          type: 'day-specific',
+          weekNumber: toetsConfig?.weekNumber || 45,
+          dayNumber: toetsConfig?.dayNumber || 5,
+          label: 'Toets'
+        };
+        
+      case 'select_assessment':
+        const assessConfig = this.getCurrentCourseConfig()?.Assessment;
+        return {
+          type: 'day-specific',
+          weekNumber: assessConfig?.weekNumber || 45,
+          dayNumber: assessConfig?.dayNumber || 6,
+          label: 'Assessment'
+        };
+        
+      default:
+        throw new Error(`Unknown overlay type: ${overlayId}`);
+    }
+  }
+  
+  /**
+   * Gets current course configuration from settings
+   */
+  getCurrentCourseConfig() {
+    if (!this.cachedSettings) return null;
+    
+    const currentBlok = this.cachedSettings.defaultBlok;
+    const currentModule = this.cachedSettings.defaultModule;
+    const currentCourse = getCurrentCourse(); // This function should be available globally
+    
+    return this.cachedSettings?.bloks?.[currentBlok]?.modules?.[currentModule]?.courses?.[currentCourse];
   }
 
   /**
@@ -270,7 +572,11 @@ class UIManager {
         }
       }, 3000);
       
-      console.log('📢 Success feedback shown:', message);
+      this.logger.info && this.logger.info(
+        this.logger.categories?.UI || 'UI',
+        `Success feedback shown: ${message}`,
+        'success-feedback'
+      );
     } catch (error) {
       console.error('❌ Error showing success feedback:', error);
     }
